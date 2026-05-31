@@ -3,9 +3,63 @@ import time
 import logging
 import json
 import re
+import requests
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+
+class HuggingFaceAPI:
+    """Hugging Face Inference API wrapper - preferred over Gemini"""
+    
+    MODEL_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1"
+    MAX_RETRIES = 3
+    RETRY_DELAY = 2
+    
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.headers = {"Authorization": f"Bearer {api_key}"}
+    
+    def is_available(self) -> bool:
+        """Quick connectivity check"""
+        try:
+            response = requests.head(self.MODEL_URL, headers=self.headers, timeout=5)
+            return response.status_code in [200, 403, 429]  # 403/429 = rate limited but working
+        except:
+            return False
+    
+    def generate_content(self, prompt: str) -> Optional[str]:
+        """Generate text using Hugging Face API"""
+        for attempt in range(self.MAX_RETRIES):
+            try:
+                response = requests.post(
+                    self.MODEL_URL,
+                    headers=self.headers,
+                    json={"inputs": prompt},
+                    timeout=30
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    if isinstance(result, list) and len(result) > 0:
+                        generated_text = result[0].get("generated_text", "")
+                        # Remove the prompt from the response (HF includes it)
+                        if generated_text.startswith(prompt):
+                            generated_text = generated_text[len(prompt):].strip()
+                        logger.info(f"HF response in attempt {attempt + 1}")
+                        return generated_text
+                elif response.status_code == 429:  # Rate limited
+                    logger.warning(f"HF rate limited, retrying... (attempt {attempt + 1})")
+                    time.sleep(self.RETRY_DELAY * (attempt + 1))
+                else:
+                    logger.error(f"HF API error {response.status_code}: {response.text[:200]}")
+            except Exception as e:
+                logger.error(f"HF API attempt {attempt + 1}/{self.MAX_RETRIES} failed: {e}")
+            
+            if attempt < self.MAX_RETRIES - 1:
+                time.sleep(self.RETRY_DELAY * (attempt + 1))
+        
+        return None
 
 
 class GeminiService:
@@ -16,37 +70,67 @@ class GeminiService:
     RETRY_DELAY = 2
 
     def __init__(self):
+        self.hf_api = None
         self.api_key = os.getenv('GEMINI_API_KEY')
         self.client = None
+        self._initialize_hf()
         self._initialize()
 
+    def _initialize_hf(self):
+        """Initialize Hugging Face API if key is available"""
+        hf_key = os.getenv('HUGGINGFACE_API_KEY')
+        if hf_key:
+            self.hf_api = HuggingFaceAPI(hf_key)
+            if self.hf_api.is_available():
+                logger.info("✓ Hugging Face API initialized (PRIMARY)")
+            else:
+                logger.warning("Hugging Face API key set but connectivity check failed")
+        else:
+            logger.info("HUGGINGFACE_API_KEY not set. Get free key at: https://huggingface.co/settings/tokens")
+
     def _initialize(self):
-        """Initialize Gemini client"""
+        """Initialize Gemini client as fallback"""
         if not self.api_key:
-            logger.warning("GEMINI_API_KEY not set. AI features will use fallback mode.")
-            logger.info("Get a free API key at: https://aistudio.google.com/app/apikey")
+            if not self.hf_api:
+                logger.warning("No API keys set. AI features will use fallback mode.")
+                logger.info("Recommended: Get Hugging Face key at https://huggingface.co/settings/tokens")
+                logger.info("Fallback: Get Gemini key at https://aistudio.google.com/app/apikey")
             return
 
         try:
             import google.generativeai as genai
             genai.configure(api_key=self.api_key)
             self.client = genai.GenerativeModel(self.MODEL_NAME)
-            logger.info(f"Gemini AI initialized with model: {self.MODEL_NAME}")
+            logger.info(f"✓ Gemini AI initialized with model: {self.MODEL_NAME} (FALLBACK)")
         except ImportError:
             logger.error("google-generativeai package not installed. Run: pip install google-generativeai")
         except Exception as e:
             logger.error(f"Failed to initialize Gemini: {e}")
 
     def is_available(self) -> bool:
-        """Check if Gemini API is available"""
+        """Check if any AI API is available"""
+        # Prefer HF if available, fallback to Gemini
+        if self.hf_api is not None:
+            return True  # HF is preferred
         return self.client is not None and self.api_key is not None
 
     def generate_content(self, prompt: str, temperature: float = 0.7) -> Optional[str]:
-        """Generate content using Gemini API with retry logic"""
+        """Generate content - tries HF first, then Gemini, then fails gracefully"""
         if not self.is_available():
-            logger.warning("Gemini not available, returning None")
+            logger.warning("No API available, returning None")
             return None
 
+        # Try Hugging Face first
+        if self.hf_api is not None:
+            result = self.hf_api.generate_content(prompt)
+            if result:
+                return result
+            logger.warning("Hugging Face failed, trying Gemini...")
+        
+        # Fallback to Gemini
+        if self.client is None:
+            return None
+            
         for attempt in range(self.MAX_RETRIES):
             try:
                 start_time = time.time()
