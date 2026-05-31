@@ -9,6 +9,9 @@ services:
       - "5000:5000"
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - HUGGINGFACE_API_KEY=${HUGGINGFACE_API_KEY}
+      - SECRET_KEY=${SECRET_KEY}
+      - FLASK_ENV=${FLASK_ENV}
       - DEBUG=false
       - PORT=5000
     volumes:
