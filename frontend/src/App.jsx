@@ -1,17 +1,19 @@
-import React from 'react'
+import React, { Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AnimatePresence } from 'framer-motion'
 import { AppProvider } from './context/AppContext'
-import LandingPage from './pages/LandingPage'
-import Dashboard from './pages/Dashboard'
-import DashboardOverview from './pages/DashboardOverview'
-import CommunicationCoachPage from './pages/CommunicationCoachPage'
-import ResumePage from './pages/ResumePage'
-import InterviewPage from './pages/InterviewPage'
-import AnalyticsPage from './pages/AnalyticsPage'
-import ResultsPage from './pages/ResultsPage'
-import QuizPage from './pages/QuizPage'
+import { FullPageLoader } from './components/LoadingSpinner'
+
+const LandingPage = lazy(() => import('./pages/LandingPage'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const DashboardOverview = lazy(() => import('./pages/DashboardOverview'))
+const CommunicationCoachPage = lazy(() => import('./pages/CommunicationCoachPage'))
+const ResumePage = lazy(() => import('./pages/ResumePage'))
+const InterviewPage = lazy(() => import('./pages/InterviewPage'))
+const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'))
+const ResultsPage = lazy(() => import('./pages/ResultsPage'))
+const QuizPage = lazy(() => import('./pages/QuizPage'))
 
 function AnimatedRoutes() {
   const location = useLocation()
@@ -56,7 +58,9 @@ export default function App() {
             error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
           }}
         />
-        <AnimatedRoutes />
+        <Suspense fallback={<FullPageLoader text="Loading AstraPrep AI..." />}>
+          <AnimatedRoutes />
+        </Suspense>
       </BrowserRouter>
     </AppProvider>
   )
