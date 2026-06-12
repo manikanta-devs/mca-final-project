@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
-  Sparkles, FileText, Mic, BarChart2, Brain, ArrowRight,
-  TrendingUp, Target, Clock, Award, ChevronRight, Zap
+  Sparkles, FileText, Mic, Brain, ArrowRight,
+  TrendingUp, Target, Clock, Award, ChevronRight
 } from 'lucide-react'
 import { getAnalyticsSummary, getAnalyticsSessions } from '../api/client'
 import { useApp } from '../context/AppContext'
 import LoadingSpinner from '../components/LoadingSpinner'
+import FreeStackPanel from '../components/FreeStackPanel'
+import AdvancedToolPanel from '../components/AdvancedToolPanel'
 
 const stagger = {
   hidden: {},
@@ -19,7 +21,7 @@ const fadeUp = {
 }
 
 const QUICK_ACTIONS = [
-  { icon: Sparkles,  label: 'AI Interview',    desc: 'Start a mock interview session', path: '/dashboard/interview', gradient: 'from-primary-500/10 to-violet-500/10', iconColor: 'text-primary-500' },
+  { icon: Sparkles,  label: 'AI Interview',    desc: 'Start a mock interview session', path: '/dashboard/interview', gradient: 'from-teal-500/10 to-cyan-500/10', iconColor: 'text-teal-500' },
   { icon: FileText,  label: 'Resume Analysis', desc: 'Upload and analyze your resume',  path: '/dashboard/resume',    gradient: 'from-emerald-500/10 to-cyan-500/10',  iconColor: 'text-emerald-500' },
   { icon: Brain,     label: 'Quiz Practice',   desc: 'Sharpen weak areas with drills',  path: '/dashboard/quiz',      gradient: 'from-orange-500/10 to-amber-500/10',  iconColor: 'text-orange-500' },
   { icon: Mic,       label: 'Coach',           desc: 'Improve speaking and structure',  path: '/dashboard/coach',     gradient: 'from-fuchsia-500/10 to-pink-500/10',  iconColor: 'text-fuchsia-500' },
@@ -76,16 +78,13 @@ export default function DashboardOverview() {
       {/* Welcome hero */}
       <motion.div
         variants={fadeUp}
-        className="card bg-gradient-to-br from-gray-950 via-slate-900 to-primary-950 text-white border-none shadow-xl overflow-hidden relative"
+        className="card bg-[linear-gradient(135deg,#07111f_0%,#0b1726_48%,#12312f_100%)] text-white border-none shadow-xl overflow-hidden relative"
       >
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute -top-20 right-0 w-72 h-72 bg-primary-500/15 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 left-1/3 w-80 h-80 bg-cyan-400/8 rounded-full blur-3xl" />
-        </div>
+        <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(120deg,rgba(20,184,166,0.16),transparent_35%),linear-gradient(320deg,rgba(251,191,36,0.14),transparent_38%)]" />
         <div className="relative z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-xs font-semibold mb-4">
-            <Sparkles className="w-3.5 h-3.5 text-primary-300" />
-            {hasData ? 'Welcome back — your data is ready' : 'Welcome to AI Interview Coach'}
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            {hasData ? 'Welcome back - your data is ready' : 'Welcome to AstraPrep AI'}
           </div>
           <h2 className="text-2xl md:text-4xl font-black leading-tight mb-3">
             {hasData
@@ -106,6 +105,10 @@ export default function DashboardOverview() {
             Start Interview <ArrowRight className="w-4 h-4" />
           </button>
         </div>
+      </motion.div>
+
+      <motion.div variants={fadeUp}>
+        <AdvancedToolPanel type="dashboard" />
       </motion.div>
 
       {/* Stats row */}
@@ -148,6 +151,10 @@ export default function DashboardOverview() {
         </div>
       </motion.div>
 
+      <motion.div variants={fadeUp}>
+        <FreeStackPanel />
+      </motion.div>
+
       {/* Recent sessions */}
       {recentSessions.length > 0 && (
         <motion.div variants={fadeUp} className="card">
@@ -166,7 +173,7 @@ export default function DashboardOverview() {
               >
                 <div>
                   <div className="font-semibold text-gray-900 dark:text-white">{s.candidate_name}</div>
-                  <div className="text-xs text-gray-500 capitalize">{s.role?.replace('_', ' ')} • {s.interview_format || 'voice'}</div>
+                  <div className="text-xs text-gray-500 capitalize">{s.role?.replace('_', ' ')} - {s.interview_format || 'voice'}</div>
                 </div>
                 <div className="text-right">
                   <div className={`text-xl font-black ${s.overall_score >= 70 ? 'text-emerald-600' : s.overall_score >= 50 ? 'text-orange-500' : 'text-red-500'}`}>
@@ -192,7 +199,7 @@ export default function DashboardOverview() {
             </div>
             <p className="text-xs text-gray-500">
               {resumeData
-                ? `${resumeData.skills?.all?.length || 0} skills detected — questions will be personalized`
+                ? `${resumeData.skills?.all?.length || 0} skills detected - questions will be personalized`
                 : 'Upload your resume to unlock personalized questions and job-match scoring'
               }
             </p>

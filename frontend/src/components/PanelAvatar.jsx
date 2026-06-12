@@ -34,7 +34,7 @@ export default function PanelAvatar({ member, isActive = true, showIntro = false
           transition={{ delay: 0.3 }}
           className={`ml-2 px-3 py-1.5 rounded-xl ${member.bgColor} border ${member.borderColor} text-xs ${member.textColor} max-w-[200px]`}
         >
-          "{member.intro}"
+          <span>&quot;{member.intro}&quot;</span>
         </motion.div>
       )}
     </motion.div>

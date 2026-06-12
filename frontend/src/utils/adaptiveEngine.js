@@ -139,10 +139,8 @@ export function shouldAskFollowUp(evaluation) {
 }
 
 export function getFollowUpPrompt(question, answer, evaluation) {
-  const qText = typeof question === 'object' ? question.text : question
   const qType = typeof question === 'object' ? question.type : 'technical'
   const topic = evaluation?.topic || 'this topic'
-  const weakAreas = evaluation?.weak_areas || []
 
   const templates = {
     technical: [

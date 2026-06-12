@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { getCommunicationCoach, getAnalyticsSummary } from '../api/client'
 import LoadingSpinner from '../components/LoadingSpinner'
+import AdvancedToolPanel from '../components/AdvancedToolPanel'
 
 export default function CommunicationCoachPage() {
   const navigate = useNavigate()
@@ -43,6 +44,8 @@ export default function CommunicationCoachPage() {
 
   return (
     <motion.div className="space-y-6" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+      <AdvancedToolPanel type="coach" />
+
       <div className="card bg-gradient-to-br from-gray-950 via-slate-900 to-primary-950 text-white border-none shadow-xl overflow-hidden relative">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute -top-20 right-0 w-72 h-72 bg-primary-500/20 rounded-full blur-3xl" />

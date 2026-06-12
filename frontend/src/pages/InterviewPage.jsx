@@ -1,13 +1,10 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 
 
 import { useNavigate } from 'react-router-dom'
 
 
 import toast from 'react-hot-toast'
-
-
-import { motion, AnimatePresence } from 'framer-motion'
 
 
 import {
@@ -28,9 +25,6 @@ import {
   ChevronDown,
 
 
-  Clock,
-
-
   Lightbulb,
 
 
@@ -44,9 +38,6 @@ import {
 
 
   RefreshCw,
-
-
-  RotateCcw,
 
 
   Send,
@@ -91,19 +82,13 @@ import { useApp } from '../context/AppContext'
 import LoadingSpinner from '../components/LoadingSpinner'
 
 
-import ProgressBar from '../components/ProgressBar'
-
-
-import Timer from '../components/Timer'
-
-
 import { MiniScoreRow } from '../components/ScoreCard'
 
 
-import { analyzeVoiceTranscript, formatSeconds, getSpeechRecognition, countFillers } from '../utils/voiceInterview'
+import { analyzeVoiceTranscript, getSpeechRecognition, countFillers } from '../utils/voiceInterview'
 
 
-import { getNextDifficulty, generateLiveCoachingTips, shouldAskFollowUp, getFollowUpPrompt, getDifficultyLabel } from '../utils/adaptiveEngine'
+import { getNextDifficulty, generateLiveCoachingTips, shouldAskFollowUp } from '../utils/adaptiveEngine'
 
 
 import LiveFeedbackPanel from '../components/LiveFeedbackPanel'
@@ -113,9 +98,14 @@ import InterviewStatsBar from '../components/InterviewStatsBar'
 
 
 import PanelAvatar, { PanelRoster } from '../components/PanelAvatar'
+import AIInterviewerRoom from '../components/AIInterviewerRoom'
+import FreeStackPanel from '../components/FreeStackPanel'
+import VoiceCaptureStudio from '../components/VoiceCaptureStudio'
+import AdvancedToolPanel from '../components/AdvancedToolPanel'
 
 
-import { PANEL_MEMBERS, getPanelMemberForQuestion, adjustFeedbackForPersona } from '../utils/panelInterviewer'
+import { PANEL_MEMBERS, getPanelMemberForQuestion } from '../utils/panelInterviewer'
+import { createEmotionSnapshot, startEmotionSampler } from '../utils/emotionAnalysis'
 
 
 
@@ -124,13 +114,13 @@ import { PANEL_MEMBERS, getPanelMemberForQuestion, adjustFeedbackForPersona } fr
 const DIFF_OPTIONS = [
 
 
-  { value: 'easy', label: '🟢 Easy', desc: 'Fundamental concepts' },
+  { value: 'easy', label: 'Easy', desc: 'Fundamental concepts' },
 
 
-  { value: 'medium', label: '🟡 Medium', desc: 'Industry standard level' },
+  { value: 'medium', label: 'Medium', desc: 'Industry standard level' },
 
 
-  { value: 'hard', label: '🔴 Hard', desc: 'Senior/expert level' },
+  { value: 'hard', label: 'Hard', desc: 'Senior/expert level' },
 
 
 ]
@@ -280,15 +270,6 @@ export default function InterviewPage() {
   const [showTypingFallback, setShowTypingFallback] = useState(false)
 
 
-  const [timerKey, setTimerKey] = useState(0)
-
-
-  const [skipped, setSkipped] = useState(0)
-
-
-  const [voiceSupported, setVoiceSupported] = useState(false)
-
-
   const [isListening, setIsListening] = useState(false)
 
 
@@ -305,6 +286,7 @@ export default function InterviewPage() {
 
 
   const [recordingUrl, setRecordingUrl] = useState('')
+  const [activeMediaStream, setActiveMediaStream] = useState(null)
 
 
   const [cameraReady, setCameraReady] = useState(false)
@@ -331,10 +313,11 @@ export default function InterviewPage() {
   const [totalElapsed, setTotalElapsed] = useState(0)
 
 
-  const [followUpQuestion, setFollowUpQuestion] = useState(null)
-
-
   const [panelMode, setPanelMode] = useState(false)
+  const [aiInterviewerMode, setAiInterviewerMode] = useState(true)
+  const [interviewerVoice, setInterviewerVoice] = useState(true)
+  const [isInterviewerSpeaking, setIsInterviewerSpeaking] = useState(false)
+  const [emotionSnapshot, setEmotionSnapshot] = useState(createEmotionSnapshot())
 
 
 
@@ -374,6 +357,8 @@ export default function InterviewPage() {
 
 
   const autoCaptureAttemptedRef = useRef(-1)
+  const stopEmotionSamplerRef = useRef(null)
+  const emotionHistoryRef = useRef([])
 
 
 
@@ -383,18 +368,14 @@ export default function InterviewPage() {
 
 
   const progress = questions.length > 0 ? (currentIndex / questions.length) * 100 : 0
+  const activePanelMember = panelMode ? getPanelMemberForQuestion(currentQuestion) : null
+  const interviewerName = activePanelMember?.name || 'AI Hiring Manager'
 
 
 
 
 
   useEffect(() => {
-
-
-    const Recognition = getSpeechRecognition()
-
-
-    setVoiceSupported(Boolean(Recognition) && Boolean(navigator.mediaDevices?.getUserMedia))
 
 
 
@@ -421,7 +402,9 @@ export default function InterviewPage() {
           recognitionRef.current.stop()
 
 
-        } catch (_) {}
+        } catch (_) {
+          void _
+        }
 
 
         recognitionRef.current = null
@@ -442,7 +425,9 @@ export default function InterviewPage() {
           mediaRecorderRef.current.stop()
 
 
-        } catch (_) {}
+        } catch (_) {
+          void _
+        }
 
 
       }
@@ -474,6 +459,10 @@ export default function InterviewPage() {
 
       }
 
+      stopEmotionSamplerRef.current?.()
+      stopEmotionSamplerRef.current = null
+      window.speechSynthesis?.cancel()
+
 
     }
 
@@ -497,6 +486,30 @@ export default function InterviewPage() {
 
 
   }, [phase, currentIndex, interviewFormat, showTypingFallback])
+
+  useEffect(() => {
+    if (!interviewerVoice || phase !== PHASE.INTERVIEWING || !currentQuestion?.text || typeof window === 'undefined') {
+      return undefined
+    }
+
+    const synth = window.speechSynthesis
+    if (!synth || typeof SpeechSynthesisUtterance === 'undefined') return undefined
+
+    synth.cancel()
+    const utterance = new SpeechSynthesisUtterance(currentQuestion.text)
+    utterance.rate = 0.92
+    utterance.pitch = panelMode ? 0.96 : 1
+    utterance.onstart = () => setIsInterviewerSpeaking(true)
+    utterance.onend = () => setIsInterviewerSpeaking(false)
+    utterance.onerror = () => setIsInterviewerSpeaking(false)
+
+    const timer = window.setTimeout(() => synth.speak(utterance), 350)
+    return () => {
+      window.clearTimeout(timer)
+      synth.cancel()
+      setIsInterviewerSpeaking(false)
+    }
+  }, [phase, currentIndex, currentQuestion?.text, interviewerVoice, panelMode])
 
 
 
@@ -709,7 +722,9 @@ export default function InterviewPage() {
         recognition.stop()
 
 
-      } catch (_) {}
+      } catch (_) {
+        void _
+      }
 
 
       recognitionRef.current = null
@@ -733,7 +748,9 @@ export default function InterviewPage() {
         recorder.stop()
 
 
-      } catch (_) {}
+      } catch (_) {
+        void _
+      }
 
 
     }
@@ -742,6 +759,9 @@ export default function InterviewPage() {
     mediaRecorderRef.current = null
 
 
+
+    stopEmotionSamplerRef.current?.()
+    stopEmotionSamplerRef.current = null
 
 
 
@@ -755,6 +775,7 @@ export default function InterviewPage() {
 
 
     }
+    setActiveMediaStream(null)
 
 
 
@@ -874,9 +895,6 @@ export default function InterviewPage() {
     if (!Recognition || !navigator.mediaDevices?.getUserMedia) {
 
 
-      setVoiceSupported(false)
-
-
       toast.error('Voice recognition is not supported in this browser.')
 
 
@@ -926,6 +944,7 @@ export default function InterviewPage() {
 
 
       mediaStreamRef.current = stream
+      setActiveMediaStream(stream)
 
 
       recordingStartedAtRef.current = Date.now()
@@ -944,6 +963,22 @@ export default function InterviewPage() {
 
 
         setCameraReady(true)
+
+        stopEmotionSamplerRef.current?.()
+        emotionHistoryRef.current = []
+        setEmotionSnapshot(createEmotionSnapshot())
+        const beginEmotionSampling = () => {
+          stopEmotionSamplerRef.current?.()
+          stopEmotionSamplerRef.current = startEmotionSampler({
+            video: cameraPreviewRef.current,
+            onUpdate: snapshot => {
+              emotionHistoryRef.current = [...emotionHistoryRef.current.slice(-79), snapshot]
+              setEmotionSnapshot(snapshot)
+            },
+          })
+        }
+        if (cameraPreviewRef.current.readyState >= 2) beginEmotionSampling()
+        else cameraPreviewRef.current.onloadedmetadata = beginEmotionSampling
 
 
       }
@@ -1258,9 +1293,6 @@ export default function InterviewPage() {
         setAnswer('')
 
 
-        setSkipped(0)
-
-
         setVoiceTranscript('')
 
 
@@ -1271,6 +1303,7 @@ export default function InterviewPage() {
 
 
         setVoiceError('')
+        setEmotionSnapshot(createEmotionSnapshot())
 
 
         setShowHint(false)
@@ -1375,6 +1408,9 @@ export default function InterviewPage() {
         voice_metrics: latestVoiceMetrics || voiceMetrics || null,
 
 
+        emotion_metrics: interviewFormat === 'video' ? emotionSnapshot : null,
+
+
       })
 
 
@@ -1411,7 +1447,7 @@ export default function InterviewPage() {
         setAdaptiveDifficulty(nextDiff)
 
 
-        toast(`Difficulty adjusted to ${nextDiff}`, { icon: '📊' })
+        toast(`Difficulty adjusted to ${nextDiff}`)
 
 
       }
@@ -1495,9 +1531,6 @@ export default function InterviewPage() {
     setShowTypingFallback(false)
 
 
-    setTimerKey(key => key + 1)
-
-
     setVoiceTranscript('')
 
 
@@ -1508,6 +1541,7 @@ export default function InterviewPage() {
 
 
     setVoiceError('')
+    setEmotionSnapshot(createEmotionSnapshot())
 
 
     if (recordingUrl) {
@@ -1534,9 +1568,6 @@ export default function InterviewPage() {
   const handleSkip = async () => {
 
 
-    setSkipped(count => count + 1)
-
-
     const latestVoiceMetrics = await stopVoiceCapture({ keepTranscript: false, saveRecordingPreview: false, persistMetrics: false }).catch(() => null)
 
 
@@ -1558,10 +1589,15 @@ export default function InterviewPage() {
         voice_metrics: latestVoiceMetrics || voiceMetrics || null,
 
 
+        emotion_metrics: interviewFormat === 'video' ? emotionSnapshot : null,
+
+
       })
 
 
-    } catch (_) {}
+    } catch (_) {
+      void _
+    }
 
 
     await handleNextQuestion()
@@ -1612,87 +1648,6 @@ export default function InterviewPage() {
 
 
 
-  const handleReset = () => {
-
-
-    stopVoiceCapture({ keepTranscript: false, saveRecordingPreview: false, persistMetrics: false }).catch(() => {})
-
-
-    setPhase(PHASE.SETUP)
-
-
-    setQuestions([])
-
-
-    setSessionId(null)
-
-
-    setCurrentIndex(0)
-
-
-    setAnswer('')
-
-
-    setEvaluation(null)
-
-
-    setShowHint(false)
-
-
-    setShowTypingFallback(false)
-
-
-    setSkipped(0)
-
-
-    setVoiceTranscript('')
-
-
-    setVoiceInterim('')
-
-
-    setVoiceMetrics(null)
-
-
-    setVoiceError('')
-
-
-    if (recordingUrl) {
-
-
-      URL.revokeObjectURL(recordingUrl)
-
-
-      setRecordingUrl('')
-
-
-    }
-
-
-  }
-
-
-
-
-
-  const handleTimerExpire = () => {
-
-
-    toast("Time's up! Auto-submitting...", { icon: '⏱️' })
-
-
-    if (answer.trim()) handleSubmitAnswer()
-
-
-    else handleSkip()
-
-
-  }
-
-
-
-
-
   const handleRetryAnswer = () => {
 
 
@@ -1718,6 +1673,7 @@ export default function InterviewPage() {
 
 
     setVoiceError('')
+    setEmotionSnapshot(createEmotionSnapshot())
 
 
     setCoachingTips([])
@@ -1738,7 +1694,7 @@ export default function InterviewPage() {
     setPhase(PHASE.INTERVIEWING)
 
 
-    toast('Retry mode — give a better answer!', { icon: '📄' })
+    toast('Retry mode - give a better answer!')
 
 
   }
@@ -1778,9 +1734,6 @@ export default function InterviewPage() {
 
 
       if (data.follow_up_question) {
-
-
-        setFollowUpQuestion(data.follow_up_question)
 
 
         // Insert follow-up as next question
@@ -1838,6 +1791,7 @@ export default function InterviewPage() {
 
 
       <div className="max-w-3xl mx-auto space-y-5 animate-in">
+        <AdvancedToolPanel type="interview" />
 
 
         <div className="card">
@@ -1852,10 +1806,10 @@ export default function InterviewPage() {
             {resumeData
 
 
-              ? <span className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500 inline" /> Resume loaded — questions will be tailored to your skills.</span>
+              ? <span className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500 inline" /> Resume loaded - questions will be tailored to your skills.</span>
 
 
-              : <span className="flex items-center gap-2"><AlertCircle className="w-4 h-4 text-orange-400 inline" /> No resume uploaded — using generic role-based questions.</span>
+              : <span className="flex items-center gap-2"><AlertCircle className="w-4 h-4 text-orange-400 inline" /> No resume uploaded - using generic role-based questions.</span>
 
 
             }
@@ -1960,7 +1914,7 @@ export default function InterviewPage() {
 
 
 
-          <div className="mb-5">
+          <div className="mb-6">`r`n            <FreeStackPanel compact />`r`n          </div>`r`n`r`n`r`n`r`n          <div className="mb-5">
 
 
             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Target Role</label>
@@ -2206,6 +2160,40 @@ export default function InterviewPage() {
 
 
 
+          <div className="mb-6 grid md:grid-cols-2 gap-3">
+            <div className="rounded-2xl border border-white/10 bg-slate-950 text-white p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-bold">2D AI Interviewer</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Avatar room with camera preview and emotion signals</p>
+                </div>
+                <button
+                  onClick={() => setAiInterviewerMode(!aiInterviewerMode)}
+                  className={clsx('relative w-12 h-6 rounded-full transition-colors shrink-0', aiInterviewerMode ? 'bg-cyan-600' : 'bg-gray-700')}
+                >
+                  <span className={clsx('absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform', aiInterviewerMode ? 'translate-x-6' : 'translate-x-0.5')} />
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-slate-950 text-white p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-bold">Spoken Questions</p>
+                  <p className="text-xs text-gray-400 mt-0.5">The interviewer reads each question aloud</p>
+                </div>
+                <button
+                  onClick={() => setInterviewerVoice(!interviewerVoice)}
+                  className={clsx('relative w-12 h-6 rounded-full transition-colors shrink-0', interviewerVoice ? 'bg-amber-500' : 'bg-gray-700')}
+                >
+                  <span className={clsx('absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform', interviewerVoice ? 'translate-x-6' : 'translate-x-0.5')} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+
+
           {/* Panel Interview Toggle */}
 
 
@@ -2380,7 +2368,7 @@ export default function InterviewPage() {
     <div className="space-y-4 animate-in max-w-7xl mx-auto">
 
 
-      {/* â”€â”€ Mode Tabs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* - Mode Tabs - */}
 
 
       <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-900/80 border border-white/[0.06] w-fit">
@@ -2437,7 +2425,7 @@ export default function InterviewPage() {
 
 
 
-      {/* â”€â”€ Stats Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* - Stats Bar - */}
 
 
       <InterviewStatsBar
@@ -2470,7 +2458,7 @@ export default function InterviewPage() {
 
 
 
-      {/* â”€â”€ Main 2-Column Layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* - Main 2-Column Layout - */}
 
 
       <div className="grid lg:grid-cols-[1fr_340px] gap-4">
@@ -2480,6 +2468,20 @@ export default function InterviewPage() {
 
 
         <div className="space-y-4">
+
+
+          {interviewFormat === 'video' && aiInterviewerMode && (
+            <AIInterviewerRoom
+              cameraPreviewRef={cameraPreviewRef}
+              currentQuestion={currentQuestion}
+              interviewerName={interviewerName}
+              isListening={isListening}
+              isSpeaking={isInterviewerSpeaking}
+              cameraReady={cameraReady}
+              emotionSnapshot={emotionSnapshot}
+            />
+          )}
+
 
 
           {/* Question Card */}
@@ -2611,7 +2613,7 @@ export default function InterviewPage() {
               <div className="mt-2 p-3 bg-amber-500/10 rounded-xl text-xs text-amber-200 border border-amber-500/20">
 
 
-                <Lightbulb className="w-3.5 h-3.5 inline mr-1" /> This is a <strong>{currentQuestion?.type}</strong> question about <strong>{currentQuestion?.category}</strong>. Structure your answer: context â†’ approach â†’ outcome.
+                <Lightbulb className="w-3.5 h-3.5 inline mr-1" /> This is a <strong>{currentQuestion?.type}</strong> question about <strong>{currentQuestion?.category}</strong>. Structure your answer: context, approach, outcome.
 
 
               </div>
@@ -2635,7 +2637,7 @@ export default function InterviewPage() {
             <div className="rounded-2xl border border-white/10 bg-slate-950 p-5">
 
 
-              {interviewFormat === 'video' && (
+              {interviewFormat === 'video' && !aiInterviewerMode && (
 
 
                 <div className="relative rounded-xl overflow-hidden border border-white/10 bg-black mb-4">
@@ -2731,34 +2733,16 @@ export default function InterviewPage() {
 
 
 
-              {/* Live Transcript */}
-
-
-              {(voiceTranscript || voiceInterim) && (
-
-
-                <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3 text-sm text-white mb-3">
-
-
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-cyan-300 mb-1 flex items-center gap-1.5">
-
-
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" /> Live Transcription
-
-
-                  </p>
-
-
-                  <p>{voiceTranscript || 'Listening...'}</p>
-
-
-                  {voiceInterim && <p className="mt-1 italic text-cyan-200/60">{voiceInterim}</p>}
-
-
-                </div>
-
-
-              )}
+              <VoiceCaptureStudio
+                stream={activeMediaStream}
+                isListening={isListening}
+                transcript={voiceTranscript}
+                interimTranscript={voiceInterim}
+                voiceMetrics={voiceMetrics}
+                elapsedSeconds={elapsedSeconds}
+                recordingUrl={recordingUrl}
+                interviewFormat={interviewFormat}
+              />
 
 
 
@@ -2774,36 +2758,6 @@ export default function InterviewPage() {
 
 
 
-
-
-              {recordingUrl && (
-
-
-                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 mb-3">
-
-
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Answer Preview</p>
-
-
-                  {interviewFormat === 'video' ? (
-
-
-                    <video controls src={recordingUrl} className="w-full rounded-lg max-h-48 bg-black" />
-
-
-                  ) : (
-
-
-                    <audio controls src={recordingUrl} className="w-full" />
-
-
-                  )}
-
-
-                </div>
-
-
-              )}
 
 
             </div>
@@ -2950,19 +2904,19 @@ export default function InterviewPage() {
             <div className="flex items-center gap-4 px-4 py-3 rounded-2xl bg-slate-900/80 border border-white/[0.06]">
 
 
-              <MetricChip label="WPM" value={voiceMetrics?.speaking_pace_wpm || '—'} status={voiceMetrics?.speaking_pace_wpm >= 110 && voiceMetrics?.speaking_pace_wpm <= 170 ? 'good' : voiceMetrics?.speaking_pace_wpm ? 'warn' : 'idle'} />
+              <MetricChip label="WPM" value={voiceMetrics?.speaking_pace_wpm || '-'} status={voiceMetrics?.speaking_pace_wpm >= 110 && voiceMetrics?.speaking_pace_wpm <= 170 ? 'good' : voiceMetrics?.speaking_pace_wpm ? 'warn' : 'idle'} />
 
 
-              <MetricChip label="Fillers" value={voiceMetrics?.filler_count ?? '—'} status={voiceMetrics?.filler_count <= 3 ? 'good' : voiceMetrics?.filler_count ? 'warn' : 'idle'} />
+              <MetricChip label="Fillers" value={voiceMetrics?.filler_count ?? '-'} status={voiceMetrics?.filler_count <= 3 ? 'good' : voiceMetrics?.filler_count ? 'warn' : 'idle'} />
 
 
-              <MetricChip label="Words" value={voiceMetrics?.word_count || answer.split(/\s+/).filter(Boolean).length || '—'} status="idle" />
+              <MetricChip label="Words" value={voiceMetrics?.word_count || answer.split(/\s+/).filter(Boolean).length || '-'} status="idle" />
 
 
-              <MetricChip label="Clarity" value={evaluation?.clarity_score ? `${evaluation.clarity_score}` : '—'} status={evaluation?.clarity_score >= 70 ? 'good' : evaluation?.clarity_score ? 'warn' : 'idle'} />
+              <MetricChip label="Clarity" value={evaluation?.clarity_score ? `${evaluation.clarity_score}` : '-'} status={evaluation?.clarity_score >= 70 ? 'good' : evaluation?.clarity_score ? 'warn' : 'idle'} />
 
 
-              <MetricChip label="Confidence" value={evaluation?.confidence_score ? `${evaluation.confidence_score}` : '—'} status={evaluation?.confidence_score >= 70 ? 'good' : evaluation?.confidence_score ? 'warn' : 'idle'} />
+              <MetricChip label="Confidence" value={evaluation?.confidence_score ? `${evaluation.confidence_score}` : '-'} status={evaluation?.confidence_score >= 70 ? 'good' : evaluation?.confidence_score ? 'warn' : 'idle'} />
 
 
             </div>
@@ -3184,7 +3138,7 @@ export default function InterviewPage() {
 
 
 
-        {/* RIGHT COLUMN — Live Feedback Panel */}
+        {/* RIGHT COLUMN - Live Feedback Panel */}
 
 
         <div className="hidden lg:block">
@@ -3203,6 +3157,7 @@ export default function InterviewPage() {
 
 
               voiceMetrics={voiceMetrics}
+              emotionSnapshot={emotionSnapshot}
 
 
               isLive={isListening}
@@ -3235,7 +3190,7 @@ export default function InterviewPage() {
 
 
 
-/* â”€â”€ Metric Chip (bottom bar) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* - Metric Chip (bottom bar) - */
 
 
 function MetricChip({ label, value, status = 'idle' }) {
@@ -3278,6 +3233,12 @@ function MetricChip({ label, value, status = 'idle' }) {
 
 
 }
+
+
+
+
+
+
 
 
 

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { motion } from 'framer-motion'
 import {
-  Upload, FileText, CheckCircle, AlertCircle, Cpu, User,
+  Upload, FileText, CheckCircle, Cpu, User,
   Briefcase, GraduationCap, Code, ChevronRight, RefreshCw,
   Star, Award, Globe, Target, Sparkles, Edit3
 } from 'lucide-react'
@@ -13,6 +13,7 @@ import { uploadResume, analyzeResumeText, matchResumeToJob } from '../api/client
 import { useApp } from '../context/AppContext'
 import LoadingSpinner from '../components/LoadingSpinner'
 import ProgressBar from '../components/ProgressBar'
+import AdvancedToolPanel from '../components/AdvancedToolPanel'
 
 const SKILL_COLORS = {
   languages:   { bg: 'bg-blue-50 dark:bg-blue-900/20',   text: 'text-blue-700 dark:text-blue-300',   border: 'border-blue-200 dark:border-blue-800',   icon: null, iconClass: 'text-blue-500' },
@@ -125,6 +126,8 @@ export default function ResumePage() {
 
   return (
     <motion.div className="space-y-6" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+      <AdvancedToolPanel type="resume" />
+
       {/* Candidate Name Input */}
       <div className="card">
         <div className="flex items-center gap-3 mb-4">

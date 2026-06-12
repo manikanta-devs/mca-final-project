@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
-  Sparkles, ArrowRight, CheckCircle, XCircle, Brain,
-  Mic, BarChart2, FileText, Shield, Zap, Target, Star,
-  ChevronRight, Activity
+  Sparkles, ArrowRight, CheckCircle, XCircle, Brain, Mic,
+  BarChart2, FileText, Shield, Zap, Target, ChevronRight,
+  Activity, MessageSquare, Gauge, Layers
 } from 'lucide-react'
 import { checkHealth } from '../api/client'
 import AppLogo from '../components/AppLogo'
@@ -14,25 +14,32 @@ const stagger = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.08 } },
 }
+
 const fadeUp = {
-  hidden:  { opacity: 0, y: 24 },
+  hidden: { opacity: 0, y: 24 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
 }
 
 const FEATURES = [
-  { icon: Brain,     title: 'AI-Powered Questions',     desc: 'Gemini 2.0 Flash generates role-specific, context-aware interview questions from your resume.',     color: 'text-violet-400', bg: 'bg-violet-500/10' },
-  { icon: Mic,       title: 'Voice & Video Interviews',  desc: 'Practice with live speech recognition, filler-word detection, and real-time confidence scoring.',    color: 'text-cyan-400',   bg: 'bg-cyan-500/10' },
-  { icon: BarChart2, title: 'Deep Analytics',            desc: 'Track score trends, weak areas, skill breakdowns, and get a personalized weekly study plan.',       color: 'text-primary-400',bg: 'bg-primary-500/10' },
-  { icon: FileText,  title: 'Resume Intelligence',      desc: 'Upload your resume for NLP-powered parsing, skill extraction, and job-match scoring.',              color: 'text-emerald-400',bg: 'bg-emerald-500/10' },
-  { icon: Target,    title: 'Quiz Practice',             desc: 'Strengthen weak topics with MCQ drills across coding, Python, SQL, aptitude, and HR prep.',         color: 'text-orange-400', bg: 'bg-orange-500/10' },
-  { icon: Shield,    title: 'Communication Coach',      desc: 'AI-generated speaking drills, daily practice tracks, and structured coaching for interview clarity.',color: 'text-fuchsia-400',bg: 'bg-fuchsia-500/10' },
+  { icon: Brain, title: 'Adaptive AI Interviews', desc: 'Gemini-powered questions shift by role, resume context, difficulty, and answer quality.', color: 'text-teal-300', bg: 'bg-teal-400/10' },
+  { icon: Mic, title: 'Voice Confidence Signals', desc: 'Practice live speaking with clarity, pacing, filler-word, and confidence feedback.', color: 'text-cyan-300', bg: 'bg-cyan-400/10' },
+  { icon: BarChart2, title: 'Performance Analytics', desc: 'Track trends, weak skills, grades, session history, and recommended study focus.', color: 'text-amber-300', bg: 'bg-amber-400/10' },
+  { icon: FileText, title: 'Resume Intelligence', desc: 'Extract skills from resumes and turn them into personalized preparation paths.', color: 'text-emerald-300', bg: 'bg-emerald-400/10' },
+  { icon: Target, title: 'Targeted Quiz Drills', desc: 'Practice coding, Python, SQL, aptitude, and HR topics with focused MCQ rounds.', color: 'text-orange-300', bg: 'bg-orange-400/10' },
+  { icon: Shield, title: 'Communication Coach', desc: 'Build structured answers, stronger delivery, and daily speaking discipline.', color: 'text-rose-300', bg: 'bg-rose-400/10' },
 ]
 
 const STATS = [
-  { label: 'AI Models',    value: 'Gemini 2.0' },
-  { label: 'Interview Modes', value: '3 Formats' },
-  { label: 'Quiz Topics',  value: '5+' },
-  { label: 'Analytics',    value: 'Real-time' },
+  { label: 'AI Engine', value: 'Free-first' },
+  { label: 'Interview Modes', value: 'Text + Voice + Video' },
+  { label: 'Practice Tracks', value: '6 Modules' },
+  { label: 'Feedback Loop', value: 'Live' },
+]
+
+const SIGNALS = [
+  { icon: Gauge, label: 'Confidence', value: '82%' },
+  { icon: MessageSquare, label: 'Answer depth', value: 'Strong' },
+  { icon: Layers, label: 'Skill match', value: '76%' },
 ]
 
 export default function LandingPage() {
@@ -50,29 +57,26 @@ export default function LandingPage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-surface-950 text-white overflow-hidden relative">
-      {/* Background effects */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-primary-500/8 rounded-full blur-[120px]" />
-        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-violet-500/6 rounded-full blur-[100px]" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-cyan-500/4 rounded-full blur-[150px]" />
-      </div>
-
-      {/* Grid pattern overlay */}
-      <div className="fixed inset-0 pointer-events-none opacity-[0.02]"
-        style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)', backgroundSize: '40px 40px' }}
+    <div className="min-h-screen bg-[#06101b] text-white overflow-hidden relative">
+      <div className="fixed inset-0 pointer-events-none bg-[linear-gradient(140deg,rgba(20,184,166,0.14),transparent_34%),linear-gradient(315deg,rgba(251,191,36,0.11),transparent_36%),linear-gradient(180deg,#06101b_0%,#0a1624_46%,#07111f_100%)]" />
+      <div
+        className="fixed inset-0 pointer-events-none opacity-[0.025]"
+        style={{
+          backgroundImage: 'linear-gradient(rgba(255,255,255,0.9) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.9) 1px, transparent 1px)',
+          backgroundSize: '48px 48px',
+        }}
       />
 
-      {/* Navigation */}
       <motion.nav
         className="relative z-20 flex items-center justify-between px-6 md:px-12 py-5 border-b border-white/5"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <AppLogo size={36} showText={true} />
+        <AppLogo size={36} showText />
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium"
+          <div
+            className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold"
             style={{
               borderColor: status === 'connected' ? 'rgba(34,197,94,0.3)' : status === 'error' ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.1)',
               background: status === 'connected' ? 'rgba(34,197,94,0.08)' : status === 'error' ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.03)',
@@ -82,62 +86,109 @@ export default function LandingPage() {
             {status === 'connected' && <><Activity className="w-3.5 h-3.5 text-green-400" /> <span className="text-green-300">API Live</span></>}
             {status === 'error' && <><XCircle className="w-3.5 h-3.5 text-red-400" /> <span className="text-red-300">Offline</span></>}
           </div>
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="btn-primary text-sm"
-          >
+          <button onClick={() => navigate('/dashboard')} className="btn-primary text-sm">
             Launch App <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       </motion.nav>
 
-      {/* Hero */}
-      <section className="relative z-10 max-w-6xl mx-auto px-6 md:px-12 pt-20 md:pt-32 pb-20">
+      <section className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 pt-14 md:pt-24 pb-16">
         <motion.div
-          className="text-center max-w-4xl mx-auto"
+          className="grid lg:grid-cols-[1fr_0.9fr] gap-12 items-center"
           variants={stagger}
           initial="hidden"
           animate="visible"
         >
-          <motion.div variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm font-medium text-white/70 mb-8">
-            <Sparkles className="w-4 h-4 text-primary-400" />
-            Powered by Google Gemini 2.0 Flash
-            <span className="px-2 py-0.5 rounded-md bg-primary-500/15 text-primary-300 text-xs font-semibold ml-1">v{version || '3.0'}</span>
-          </motion.div>
+          <div>
+            <motion.div variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/6 border border-white/10 text-sm font-semibold text-white/75 mb-8">
+              <Sparkles className="w-4 h-4 text-amber-300" />
+              Free browser tools with optional AI providers
+              <span className="px-2 py-0.5 rounded-md bg-teal-400/15 text-teal-200 text-xs font-extrabold ml-1">v{version || '3.0'}</span>
+            </motion.div>
 
-          <motion.h1 variants={fadeUp} className="text-4xl sm:text-5xl md:text-7xl font-black leading-[1.1] tracking-tight mb-6">
-            Ace your next interview
-            <br />
-            <span className="gradient-text">with AI coaching</span>
-          </motion.h1>
+            <motion.h1 variants={fadeUp} className="text-4xl sm:text-5xl md:text-7xl font-black leading-[1.03] tracking-normal mb-6">
+              AstraPrep AI
+              <span className="block brand-text">turns practice into proof.</span>
+            </motion.h1>
 
-          <motion.p variants={fadeUp} className="text-lg md:text-xl text-white/50 max-w-2xl mx-auto leading-relaxed mb-10">
-            Practice with AI-generated questions tailored to your resume, get instant feedback on answers,
-            and track your improvement with deep analytics.
-          </motion.p>
+            <motion.p variants={fadeUp} className="text-lg md:text-xl text-white/65 max-w-2xl leading-relaxed mb-9">
+              A polished interview preparation suite with resume parsing, adaptive mock interviews,
+              voice/video coaching, quiz drills, and analytics built for real improvement.
+            </motion.p>
 
-          <motion.div variants={fadeUp} className="flex flex-wrap gap-4 justify-center mb-16">
-            <button onClick={() => navigate('/dashboard/interview')} className="btn-primary px-8 py-3.5 text-base">
-              <Sparkles className="w-5 h-5" /> Start AI Interview
-            </button>
-            <button onClick={() => navigate('/dashboard/resume')} className="btn-secondary px-8 py-3.5 text-base bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20">
-              <FileText className="w-5 h-5" /> Upload Resume
-            </button>
-          </motion.div>
+            <motion.div variants={fadeUp} className="flex flex-wrap gap-4 mb-12">
+              <button onClick={() => navigate('/dashboard/interview')} className="btn-primary px-8 py-3.5 text-base">
+                <Sparkles className="w-5 h-5" /> Start AI Interview
+              </button>
+              <button onClick={() => navigate('/dashboard/resume')} className="btn-secondary px-8 py-3.5 text-base bg-white/6 border-white/10 text-white hover:bg-white/10 hover:border-white/20">
+                <FileText className="w-5 h-5" /> Analyze Resume
+              </button>
+            </motion.div>
 
-          {/* Stats row */}
-          <motion.div variants={fadeUp} className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto">
-            {STATS.map(({ label, value }) => (
-              <div key={label} className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-4 backdrop-blur-sm">
-                <div className="text-lg font-bold text-white">{value}</div>
-                <div className="text-xs text-white/40 font-medium mt-0.5">{label}</div>
+            <motion.div variants={fadeUp} className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-3xl">
+              {STATS.map(({ label, value }) => (
+                <div key={label} className="rounded-xl bg-white/[0.045] border border-white/[0.08] p-4 backdrop-blur-sm">
+                  <div className="text-base font-black text-white">{value}</div>
+                  <div className="text-xs text-white/45 font-semibold mt-0.5">{label}</div>
+                </div>
+              ))}
+            </motion.div>
+          </div>
+
+          <motion.div variants={fadeUp} className="relative min-h-[430px] lg:min-h-[520px]">
+            <div className="absolute inset-0 rounded-[2rem] border border-white/10 bg-white/[0.035] shadow-2xl shadow-black/30 backdrop-blur-xl overflow-hidden">
+              <div className="h-12 border-b border-white/10 flex items-center gap-2 px-5 bg-white/[0.04]">
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-400" />
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-300" />
+                <span className="w-2.5 h-2.5 rounded-full bg-teal-300" />
+                <span className="ml-auto text-xs text-white/45 font-semibold">Live mock interview</span>
               </div>
-            ))}
+              <div className="p-5 space-y-4">
+                <div className="rounded-2xl bg-[#0b1726] border border-white/[0.08] p-5">
+                  <div className="flex items-center justify-between mb-5">
+                    <div>
+                      <div className="text-xs text-white/45 font-semibold">Current role</div>
+                      <div className="font-black text-xl">Software Engineer</div>
+                    </div>
+                    <div className="px-3 py-1 rounded-full bg-teal-400/12 text-teal-200 border border-teal-300/20 text-xs font-bold">Adaptive</div>
+                  </div>
+                  <div className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-4">
+                    <div className="text-xs text-amber-200 font-bold mb-2">Question 04</div>
+                    <p className="text-sm text-white/78 leading-relaxed">
+                      Explain how you would debug a slow API endpoint and communicate your findings to a non-technical stakeholder.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid sm:grid-cols-3 gap-3">
+                  {SIGNALS.map(({ icon: Icon, label, value }) => (
+                    <div key={label} className="rounded-xl bg-white/[0.045] border border-white/[0.08] p-4">
+                      <Icon className="w-4 h-4 text-cyan-200 mb-3" />
+                      <div className="text-lg font-black">{value}</div>
+                      <div className="text-xs text-white/42 font-semibold">{label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="rounded-2xl bg-white/[0.04] border border-white/[0.08] p-5">
+                  <div className="flex items-center justify-between text-xs font-bold text-white/55 mb-3">
+                    <span>Answer quality</span>
+                    <span>78%</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-white/[0.08] overflow-hidden">
+                    <div className="h-full w-[78%] rounded-full bg-gradient-to-r from-teal-300 via-cyan-300 to-amber-300" />
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-white/58">
+                    <div className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-teal-300" /> Clear structure</div>
+                    <div className="flex items-center gap-2"><Zap className="w-3.5 h-3.5 text-amber-300" /> Add metrics</div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </motion.div>
         </motion.div>
       </section>
 
-      {/* Features */}
       <section className="relative z-10 max-w-6xl mx-auto px-6 md:px-12 pb-24">
         <motion.div
           className="text-center mb-12"
@@ -145,46 +196,41 @@ export default function LandingPage() {
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
         >
-          <h2 className="text-3xl md:text-4xl font-black mb-3">Everything you need to prepare</h2>
-          <p className="text-white/40 max-w-xl mx-auto">Six integrated modules that work together to build your interview readiness.</p>
+          <h2 className="text-3xl md:text-4xl font-black mb-3">Everything evaluators expect to see</h2>
+          <p className="text-white/45 max-w-xl mx-auto">A complete, connected feature set that makes the project feel practical, modern, and demo-ready.</p>
         </motion.div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {FEATURES.map(({ icon: Icon, title, desc, color, bg }, i) => (
             <motion.div
               key={title}
-              className="group rounded-2xl bg-white/[0.03] border border-white/[0.06] p-6 hover:border-white/[0.12] hover:bg-white/[0.05] transition-all duration-300"
+              className="group rounded-xl bg-white/[0.04] border border-white/[0.07] p-6 hover:border-white/[0.14] hover:bg-white/[0.06] transition-all duration-300"
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.08, duration: 0.4 }}
             >
-              <div className={`w-11 h-11 rounded-2xl ${bg} flex items-center justify-center mb-4`}>
+              <div className={`w-11 h-11 rounded-xl ${bg} flex items-center justify-center mb-4`}>
                 <Icon className={`w-5 h-5 ${color}`} />
               </div>
               <h3 className="font-bold text-white mb-2">{title}</h3>
-              <p className="text-sm text-white/40 leading-relaxed">{desc}</p>
+              <p className="text-sm text-white/45 leading-relaxed">{desc}</p>
             </motion.div>
           ))}
         </div>
       </section>
 
-      {/* CTA */}
       <section className="relative z-10 max-w-6xl mx-auto px-6 md:px-12 pb-24">
         <motion.div
-          className="rounded-3xl bg-gradient-to-br from-primary-600/20 via-violet-600/10 to-cyan-600/10 border border-white/[0.06] p-12 md:p-16 text-center relative overflow-hidden"
+          className="rounded-2xl bg-[linear-gradient(135deg,rgba(20,184,166,0.18),rgba(255,255,255,0.045)_46%,rgba(251,191,36,0.14))] border border-white/[0.08] p-12 md:p-16 text-center relative overflow-hidden"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute -top-20 -right-20 w-72 h-72 bg-primary-500/10 rounded-full blur-3xl" />
-            <div className="absolute -bottom-20 -left-20 w-60 h-60 bg-cyan-500/10 rounded-full blur-3xl" />
-          </div>
           <div className="relative z-10">
-            <h2 className="text-3xl md:text-4xl font-black mb-4">Ready to start practicing?</h2>
+            <h2 className="text-3xl md:text-4xl font-black mb-4">Bring the whole demo together.</h2>
             <p className="text-white/50 max-w-xl mx-auto mb-8">
-              Upload your resume, start a mock interview, and get AI-powered feedback in minutes. No signup required.
+              Upload a resume, run a mock interview, review scores, and show a complete AI preparation workflow in minutes.
             </p>
             <button onClick={() => navigate('/dashboard')} className="btn-primary px-10 py-4 text-base">
               Open Dashboard <ChevronRight className="w-5 h-5" />
@@ -193,12 +239,11 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
-      {/* Footer */}
       <footer className="relative z-10 border-t border-white/5 py-8 px-6 md:px-12">
-        <div className="max-w-6xl mx-auto flex items-center justify-between text-xs text-white/30">
+        <div className="max-w-6xl mx-auto flex items-center justify-between text-xs text-white/35">
           <div className="flex items-center gap-2">
             <AppLogo size={20} showText={false} />
-            <span>AI Interview Coach — Built with Gemini AI</span>
+            <span>AstraPrep AI - Built with Gemini AI</span>
           </div>
           <span>{version && `v${version}`}</span>
         </div>

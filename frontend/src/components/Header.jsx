@@ -14,11 +14,11 @@ export default function Header({ title = '', subtitle = '' }) {
     >
       {/* Subtle gradient bg */}
       <div className="absolute inset-0 bg-white dark:bg-surface-900 border-b border-gray-100 dark:border-white/5" />
-      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_30%_0%,rgba(99,102,241,0.03),transparent_50%)] dark:bg-[radial-gradient(circle_at_30%_0%,rgba(99,102,241,0.06),transparent_50%)]" />
+      <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(90deg,rgba(20,184,166,0.04),transparent_42%,rgba(245,158,11,0.04))] dark:bg-[linear-gradient(90deg,rgba(20,184,166,0.08),transparent_42%,rgba(245,158,11,0.06))]" />
 
       {/* Animated gradient accent bar */}
       <div className="absolute bottom-0 left-0 right-0 h-[2px] gradient-animated"
-        style={{ background: 'linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4, #8b5cf6, #6366f1)', backgroundSize: '200% 100%' }}
+        style={{ background: 'linear-gradient(90deg, #0f766e, #06b6d4, #f59e0b, #06b6d4, #0f766e)', backgroundSize: '200% 100%' }}
       />
 
       <div className="relative flex flex-col justify-center w-full max-w-5xl mx-auto items-center z-10">

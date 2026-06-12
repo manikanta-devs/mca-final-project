@@ -27,7 +27,7 @@ function getResourceForTopic(topic) {
   return STUDY_RESOURCES[key] || STUDY_RESOURCES.default
 }
 
-export default function SkillGapReport({ answers = [], weakAreas = [] }) {
+export default function SkillGapReport({ answers = [] }) {
   // Build topic scores from answers
   const topicScores = {}
   answers.forEach(ans => {

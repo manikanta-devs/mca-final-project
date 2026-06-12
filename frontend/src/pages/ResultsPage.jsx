@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from 'recharts'
-import { ArrowLeft, Trophy, CheckCircle, XCircle, ChevronDown, ChevronUp, Download, RotateCcw, MessageSquare, Printer, FileText } from 'lucide-react'
+import { ArrowLeft, Trophy, CheckCircle, XCircle, ChevronDown, ChevronUp, Download, RotateCcw, MessageSquare, Printer, Eye } from 'lucide-react'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { getSession } from '../api/client'
@@ -59,6 +59,7 @@ export default function ResultsPage() {
     { metric: 'Clarity',      score: results.scores.clarity     || 0 },
     { metric: 'Completeness', score: results.scores.completeness || 0 },
     { metric: 'Voice',        score: results.voice?.delivery    || results.voice_delivery_score || 0 },
+    { metric: 'Presence',     score: results.video?.engagement_score || 0 },
     { metric: 'Overall',      score: results.scores.overall     || 0 },
   ]
 
@@ -84,6 +85,7 @@ export default function ResultsPage() {
       `Voice Delivery Score: ${results.voice?.delivery ?? results.voice_delivery_score ?? 0}%`,
       `Speaking Pace: ${results.voice?.speaking_pace_wpm ?? 0} WPM`,
       `Filler Words: ${results.voice?.filler_word_count ?? 0} (${results.voice?.filler_word_ratio ?? 0}%)`,
+      `Video Presence: ${results.video?.engagement_score ?? 0}% engagement, ${results.video?.eye_contact_score ?? 0}% eye contact, ${results.video?.primary_emotion ?? 'uncertain'}`,
       ``,
       `Strong Areas: ${results.strong_areas?.join(', ') || 'N/A'}`,
       `Weak Areas: ${results.weak_areas?.join(', ') || 'N/A'}`,
@@ -148,6 +150,7 @@ export default function ResultsPage() {
                 { label: 'Technical', value: results.scores.technical },
                 { label: 'Clarity', value: results.scores.clarity },
                 { label: 'Voice', value: results.voice?.delivery || results.voice_delivery_score || 0 },
+                { label: 'Presence', value: results.video?.engagement_score || 0 },
               ].map(({ label, value }) => (
                 <div key={label} className="text-center">
                   <div className="text-2xl font-black">{value}%</div>
@@ -174,6 +177,7 @@ export default function ResultsPage() {
             <MiniScoreRow label="Clarity" score={results.scores.clarity || 0} />
             <MiniScoreRow label="Completeness" score={results.scores.completeness || 0} />
             <MiniScoreRow label="Voice" score={results.voice?.delivery || results.voice_delivery_score || 0} />
+            <MiniScoreRow label="Presence" score={results.video?.engagement_score || 0} />
           </div>
         </div>
         <div className="card">
@@ -295,6 +299,17 @@ export default function ResultsPage() {
                               <p className="font-semibold text-slate-900 dark:text-white mb-1">Voice analysis</p>
                               <p className="mb-1">{ans.evaluation.speaking_pace_wpm || 0} WPM, {ans.evaluation.filler_word_count || 0} filler words, {ans.evaluation.filler_word_ratio || 0}% filler ratio.</p>
                               {ans.evaluation.voice_feedback && <p>{ans.evaluation.voice_feedback}</p>}
+                            </div>
+                          )}
+                          {(ans.evaluation.emotion_feedback || ans.evaluation.engagement_score) && (
+                            <div className="bg-cyan-50 dark:bg-cyan-950/20 rounded-xl p-3 text-sm text-cyan-800 dark:text-cyan-300">
+                              <p className="font-semibold text-cyan-950 dark:text-cyan-100 mb-1 flex items-center gap-1.5">
+                                <Eye className="w-3.5 h-3.5" /> Video presence
+                              </p>
+                              <p className="mb-1">
+                                {ans.evaluation.emotion_label || 'uncertain'} presence, {ans.evaluation.engagement_score || 0}/100 engagement, {ans.evaluation.eye_contact_score || 0}/100 eye contact.
+                              </p>
+                              {ans.evaluation.emotion_feedback && <p>{ans.evaluation.emotion_feedback}</p>}
                             </div>
                           )}
                           {ans.evaluation.feedback && (

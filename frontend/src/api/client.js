@@ -1,5 +1,5 @@
 import axios from 'axios'
-import toast from 'react-hot-toast'
+import { parseApiError } from '../utils/apiError'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
 
@@ -13,12 +13,13 @@ const client = axios.create({
 client.interceptors.request.use(
   config => {
     config.metadata = { startTime: Date.now() }
+    console.debug(`[API] ${config.method?.toUpperCase()} ${config.url}`)
     return config
   },
   error => Promise.reject(error)
 )
 
-// ─── Response interceptor with timing + retry ───────────────
+// ─── Response interceptor with timing + retry + error handling ──
 client.interceptors.response.use(
   response => {
     const elapsed = Date.now() - (response.config.metadata?.startTime || Date.now())
@@ -29,24 +30,34 @@ client.interceptors.response.use(
   },
   async error => {
     const config = error.config
-    const msg = error.response?.data?.error || error.message || 'Request failed'
+    const apiError = parseApiError(error)
+    const msg = apiError.getReadableMessage()
 
-    // Retry once on network error or 5xx (not on cancellation or 4xx)
+    // Retry logic: retry on network errors and 5xx (not on cancellation or 4xx)
     if (
       !config._retried &&
       !error.response?.status?.toString().startsWith('4') &&
       error.code !== 'ERR_CANCELED'
     ) {
       config._retried = true
-      console.warn(`[API] Retrying ${config.method?.toUpperCase()} ${config.url} after error: ${msg}`)
-      await new Promise(r => setTimeout(r, 1500))
+      const retryDelayMs = 1500
+      console.warn(`[API] Retrying ${config.method?.toUpperCase()} ${config.url} after ${retryDelayMs}ms (${msg})`)
+      await new Promise(r => setTimeout(r, retryDelayMs))
       return client(config)
     }
 
+    // Log error if not canceled
     if (error.code !== 'ERR_CANCELED') {
-      console.error('[API] Error:', msg)
+      console.error('[API] Error:', {
+        status: error.response?.status,
+        message: msg,
+        url: config.url,
+        method: config.method?.toUpperCase()
+      })
     }
-    return Promise.reject(error)
+
+    // Return API error with parsed information
+    return Promise.reject(apiError)
   }
 )
 

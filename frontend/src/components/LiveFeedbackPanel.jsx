@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, ChevronUp, Lightbulb, Target, Zap, BookOpen, TrendingUp, AlertTriangle, CheckCircle } from 'lucide-react'
+import { ChevronDown, ChevronUp, Lightbulb, Target, Zap, BookOpen, TrendingUp, Eye } from 'lucide-react'
 
 /* ── Animated Score Ring ──────────────────────────────────────── */
 function ScoreRing({ score = 0, size = 100, strokeWidth = 8 }) {
@@ -146,11 +146,11 @@ export default function LiveFeedbackPanel({
   evaluation,
   coachingTips = [],
   voiceMetrics,
+  emotionSnapshot,
   isLive = false,
   questionType = 'technical',
 }) {
   const score = evaluation?.overall_score || 0
-  const sentiment = evaluation?.sentiment || 'neutral'
   const sentimentLabel = score >= 75 ? 'Good Answer!' : score >= 50 ? 'Decent Answer' : 'Needs Work'
   const sentimentColor = score >= 75 ? 'text-green-400' : score >= 50 ? 'text-yellow-400' : 'text-red-400'
   const sentimentDesc = score >= 75
@@ -199,6 +199,17 @@ export default function LiveFeedbackPanel({
           <div className="border-t border-white/[0.06] pt-2 mt-2">
             <FillerBadge count={evaluation.filler_word_count || voiceMetrics?.filler_count || 0} />
           </div>
+        </div>
+      )}
+
+      {emotionSnapshot?.sample_count > 0 && (
+        <div className="space-y-2.5 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+          <h4 className="text-xs font-semibold text-cyan-300 uppercase tracking-wider flex items-center gap-1.5">
+            <Eye className="w-3.5 h-3.5" /> Video Signals
+          </h4>
+          <ScoreBar label="Engage" score={emotionSnapshot.engagement_score || 0} />
+          <ScoreBar label="Eye line" score={emotionSnapshot.eye_contact_score || 0} />
+          <p className="text-[11px] text-gray-400 leading-relaxed">{emotionSnapshot.summary}</p>
         </div>
       )}
 

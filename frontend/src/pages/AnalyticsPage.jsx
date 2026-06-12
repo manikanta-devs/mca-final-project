@@ -10,7 +10,7 @@ import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { getAnalyticsSummary, getAnalyticsSessions, getPerformanceTrend, getWeakAreas, getSkillBreakdown, getStudyPlan, clearAnalytics } from '../api/client'
 import LoadingSpinner from '../components/LoadingSpinner'
-import { GradeBadge } from '../components/ScoreCard'
+import AdvancedToolPanel from '../components/AdvancedToolPanel'
 
 const CHART_COLORS = { overall: '#6366f1', technical: '#f97316', clarity: '#22c55e', completeness: '#3b82f6' }
 
@@ -102,6 +102,8 @@ export default function AnalyticsPage() {
 
   return (
     <motion.div className="space-y-6" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+      <AdvancedToolPanel type="analytics" />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
-import { CheckCircle, Circle, Clock3, Lightbulb, Play, RotateCcw, Target, Trophy } from 'lucide-react'
+import { CheckCircle, Circle, Clock3, Lightbulb, Play, RotateCcw, Target } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { clsx } from 'clsx'
 import { getQuizTopics, startQuiz, submitQuizAnswer, completeQuiz, getQuizSessions } from '../api/client'
 import LoadingSpinner from '../components/LoadingSpinner'
+import AdvancedToolPanel from '../components/AdvancedToolPanel'
 
 const DIFFICULTY_OPTIONS = [
   { value: 'easy', label: 'Easy' },
@@ -98,6 +99,8 @@ export default function QuizPage() {
 
   return (
     <motion.div className="space-y-6" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+      <AdvancedToolPanel type="quiz" />
+
       <div className="card bg-gradient-to-br from-slate-950 via-primary-950 to-slate-900 text-white border-none shadow-xl overflow-hidden relative">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute -top-20 right-0 w-72 h-72 bg-primary-500/20 rounded-full blur-3xl" />
