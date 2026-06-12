@@ -9,6 +9,7 @@ import {
 import { checkHealth } from '../api/client'
 import AppLogo from '../components/AppLogo'
 import LoadingSpinner from '../components/LoadingSpinner'
+import DemoFlow3D from '../components/DemoFlow3D'
 
 const stagger = {
   hidden: {},
@@ -188,6 +189,8 @@ export default function LandingPage() {
           </motion.div>
         </motion.div>
       </section>
+
+      <DemoFlow3D />
 
       <section className="relative z-10 max-w-6xl mx-auto px-6 md:px-12 pb-24">
         <motion.div
