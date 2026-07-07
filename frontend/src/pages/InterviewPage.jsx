@@ -1267,6 +1267,15 @@ export default function InterviewPage() {
         lastTranscriptLengthRef.current = transcript.length
         lastSpeechTimeRef.current = Date.now()
         setEncouragementText('')
+      } else if (transcript.length > 3) {
+        // Candidate has started speaking! Auto-submit after 2.5 seconds of silence
+        const timeSinceLastSpeech = Date.now() - lastSpeechTimeRef.current
+        const threshold = 2500
+        if (timeSinceLastSpeech > threshold) {
+          console.log(`Candidate finished speaking. Silence threshold of ${threshold}ms reached. Automatically submitting.`);
+          lastTranscriptLengthRef.current = 0
+          handleSubmitAnswerRef.current?.()
+        }
       }
     }, 1000)
 
