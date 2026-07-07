@@ -65,7 +65,11 @@ pip install --upgrade pip -q
 pip install -r requirements.txt -q
 print_ok "Python dependencies installed"
 
-python -m spacy download en_core_web_sm -q 2>/dev/null || print_warn "spaCy model download skipped (run: python -m spacy download en_core_web_sm)"
+python -m spacy download en_core_web_sm || {
+  print_err "Failed to download spaCy language model 'en_core_web_sm'."
+  print_err "Please check your internet connection or run: python -m spacy download en_core_web_sm"
+  exit 1
+}
 print_ok "spaCy model ready"
 
 if [ ! -f ".env" ]; then

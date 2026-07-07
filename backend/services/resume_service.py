@@ -24,11 +24,29 @@ class ResumeService:
             try:
                 return spacy.load("en_core_web_sm")
             except OSError:
+                banner = (
+                    "\n"
+                    "================================================================================\n"
+                    "⚠️  WARNING: spaCy model 'en_core_web_sm' was not found!\n"
+                    "   Resume parsing accuracy will be degraded (falling back to regex matches).\n"
+                    "   Fix this by downloading the model: python -m spacy download en_core_web_sm\n"
+                    "================================================================================\n"
+                )
+                print(banner)
                 logger.warning(
                     "spaCy model not found. Run: python -m spacy download en_core_web_sm"
                 )
                 return None
         except Exception as exc:
+            banner = (
+                "\n"
+                "================================================================================\n"
+                "⚠️  WARNING: spaCy library is not available!\n"
+                "   Resume parsing will use basic regex fallback routines.\n"
+                f"   Error: {exc}\n"
+                "================================================================================\n"
+            )
+            print(banner)
             logger.warning(
                 "spaCy unavailable, falling back to regex extraction: %s", exc
             )

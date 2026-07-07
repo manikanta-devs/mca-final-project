@@ -17,13 +17,17 @@ Run without Docker (recommended for reviewers):
    python -m pip install --upgrade pip
    python -m pip install -r backend/requirements-freeze.txt
 
-3. Start backend:
+3. Download spaCy English model:
+
+   python -m spacy download en_core_web_sm
+
+4. Start backend:
 
    set FLASK_ENV=production
    set DEBUG=false
    .venv\Scripts\python.exe backend\app.py
 
-4. Serve frontend (static): open `frontend/dist/index.html` in a static file server or copy contents to any static host.
+5. Serve frontend (static): open `frontend/dist/index.html` in a static file server or copy contents to any static host.
 
 Docker notes:
 - Docker is not available in the build environment used here. If reviewers want Docker images, run:

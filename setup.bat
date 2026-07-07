@@ -50,6 +50,12 @@ pip install -r requirements.txt -q
 echo Python dependencies installed.
 
 python -m spacy download en_core_web_sm
+IF %ERRORLEVEL% NEQ 0 (
+    echo ERROR: Failed to download spaCy language model 'en_core_web_sm'.
+    echo Please check your internet connection or run: python -m spacy download en_core_web_sm
+    pause
+    exit /b 1
+)
 echo spaCy model downloaded.
 
 IF NOT EXIST .env (

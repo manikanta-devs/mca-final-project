@@ -14,9 +14,16 @@ def setup_path():
         sys.path.insert(0, backend_path)
 
 
-def test_config_development():
+def test_config_development(monkeypatch):
     """Test development configuration."""
     setup_path()
+    monkeypatch.delenv("RATE_LIMIT_ENABLED", raising=False)
+    
+    import sys
+    import importlib
+    if "backend.config" in sys.modules:
+        importlib.reload(sys.modules["backend.config"])
+
     from backend.config import DevelopmentConfig
 
     config = DevelopmentConfig()
@@ -26,9 +33,16 @@ def test_config_development():
     assert config.RATE_LIMIT_ENABLED is False
 
 
-def test_config_production():
+def test_config_production(monkeypatch):
     """Test production configuration."""
     setup_path()
+    monkeypatch.delenv("ADMIN_DISABLE_RATE_LIMIT", raising=False)
+    
+    import sys
+    import importlib
+    if "backend.config" in sys.modules:
+        importlib.reload(sys.modules["backend.config"])
+
     from backend.config import ProductionConfig
 
     config = ProductionConfig()

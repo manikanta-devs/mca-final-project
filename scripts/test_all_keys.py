@@ -30,7 +30,11 @@ def test_gemini():
             import google.generativeai as genai
             genai.configure(api_key=key)
             model = genai.GenerativeModel(model_name)
-            response = model.generate_content("Say hello in one word", generation_config=genai.types.GenerationConfig(max_output_tokens=10))
+            response = model.generate_content(
+                "Say hello in one word",
+                generation_config=genai.types.GenerationConfig(max_output_tokens=10),
+                request_options={"timeout": 8}
+            )
             
             try:
                 text = response.text.strip()

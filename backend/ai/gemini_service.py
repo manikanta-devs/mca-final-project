@@ -109,7 +109,9 @@ class GeminiProvider(BaseAIProvider):
                         max_output_tokens=4096,
                     )
                     response = model.generate_content(
-                        prompt, generation_config=generation_config
+                        prompt,
+                        generation_config=generation_config,
+                        request_options={"timeout": 8}
                     )
                     return response.text.strip()
                 except Exception as ex:
