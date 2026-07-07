@@ -219,7 +219,28 @@ def submit_answer():
             except Exception as e:
                 logger.error(f"Adaptive regeneration failed: {e}")
 
-        next_question = session["questions"][next_index] if not is_complete else None
+        next_question = None
+        if not is_complete:
+            try:
+                from ai.question_generator import QuestionGenerator
+                qg = QuestionGenerator()
+                adaptive_q = qg.generate_next_adaptive_question(
+                    session=session,
+                    current_question_index=next_index,
+                    last_question_text=current_question["text"],
+                    last_answer_text=answer,
+                    difficulty=session.get("difficulty", "medium"),
+                    panel_mode=session.get("panel_mode", False),
+                    company=session.get("company", "General"),
+                    company_context=session.get("company_context", ""),
+                )
+                if adaptive_q:
+                    adaptive_q["id"] = next_index + 1
+                    session["questions"][next_index] = adaptive_q
+                    interview_service.save_session(session_id, session)
+            except Exception as e:
+                logger.error(f"Failed to generate adaptive next question: {e}")
+            next_question = session["questions"][next_index]
 
         return (
             jsonify(

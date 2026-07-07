@@ -1117,3 +1117,88 @@ Return a JSON array. Each question object must have:
             q.pop("persona", None)
 
         return selected
+
+    def generate_next_adaptive_question(
+        self,
+        session,
+        current_question_index,
+        last_question_text,
+        last_answer_text,
+        difficulty="medium",
+        panel_mode=False,
+        company="General",
+        company_context="",
+    ):
+        """Generate the next adaptive question conversationally based on previous answers and resume context."""
+        resume_data = session.get("resume_data", {})
+        role = session.get("role", "software_engineer")
+        
+        # Build history string (Interview Memory)
+        history = []
+        for ans in session.get("answers", []):
+            history.append(f"Interviewer: {ans['question']['text']}\nCandidate: {ans['answer']}")
+        history_str = "\n".join(history)
+
+        skills = resume_data.get("skills", {}).get("all", [])
+        skills_str = ", ".join(skills[:15]) if skills else "general programming"
+        
+        # Determine next type: if index is > 55% of total questions, transition to behavioral
+        total_questions = len(session.get("questions", []))
+        next_type = "technical"
+        if current_question_index >= (total_questions * 0.55):
+            next_type = "behavioral"
+
+        prompt = f"""You are a technical interviewer at {company} conducting a live interview for a {role} position.
+        The current difficulty is {difficulty}.
+        Candidate skills: {skills_str}
+
+        CONVERSATION HISTORY (INTERVIEW MEMORY):
+        {history_str}
+
+        CANDIDATE'S LAST RESPONSE:
+        Interviewer: {last_question_text}
+        Candidate: {last_answer_text}
+
+        Your goal is to generate a realistic, adaptive next question of type "{next_type}" based on the candidate's last answer and the interview memory.
+        
+        CRITICAL RULES:
+        1. FOLLOW UP: Do not just ask a random question. Probe their last answer.
+        2. DRILL DEEPER: If the candidate mentioned specific libraries, tools, or architectures (e.g., React, Flask, Docker), ask a trade-off or comparison question (e.g. "Why Flask instead of FastAPI?", "Why React instead of Angular?").
+        3. SCALE & SYSTEM DESIGN: If they described a project, ask how they would scale it (e.g., "If 10,000 users accessed this simultaneously, how would you handle it?").
+        4. INTERVIEW MEMORY: Refer back to things the candidate said earlier if relevant (e.g. "Earlier you mentioned you like Python, can you explain decorators?").
+        5. DIFFICULTY ADAPTATION: If the candidate struggled, ask a simpler conceptual follow-up. If they did well, raise the difficulty.
+        6. COMPANY ALIGNMENT: Align the question style with {company}'s actual interview style.
+        7. PERSONA: If panel mode is active, select a persona_id from: "technical_lead", "hr_manager", "strict_manager".
+
+        Format your response strictly as a JSON object with these keys:
+        - text: The text of the question. Write it in the direct voice of the interviewer.
+        - type: "{next_type}"
+        - category: A short 1-2 word topic name (e.g., "Web Scale", "FastAPI vs Flask", "Decorators").
+        - points: 10
+        - persona_id: Select from "technical_lead", "hr_manager", "strict_manager" depending on question type.
+        """
+
+        if self.gemini.is_available():
+            try:
+                raw_response = self.gemini.generate_content(prompt)
+                if raw_response:
+                    from routes.coach_routes import clean_llm_json
+                    cleaned = clean_llm_json(raw_response)
+                    import json
+                    parsed = json.loads(cleaned)
+                    if parsed and parsed.get("text"):
+                        return parsed
+            except Exception as e:
+                logger.error(f"Failed to generate adaptive next question: {e}")
+
+        # Fallback question from pre-generated list
+        questions = session.get("questions", [])
+        if current_question_index < len(questions):
+            return questions[current_question_index]
+        return {
+            "text": "Can you tell me about a time you faced a difficult technical challenge and how you resolved it?",
+            "type": "behavioral",
+            "category": "Behavioral",
+            "points": 10,
+            "persona_id": "hr_manager"
+        }

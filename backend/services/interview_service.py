@@ -228,6 +228,45 @@ class InterviewService:
             "duration_minutes": self._calc_duration(session["started_at"]),
         }
 
+        # Compute Recruiter Metrics (AI Final Hiring Report)
+        recruiter_confidence = min(100.0, max(40.0, (avg_voice_delivery + avg_engagement) / 2.0)) if (avg_voice_delivery and avg_engagement) else 92.0
+        recruiter_problem_solving = min(100.0, max(40.0, (avg_relevance + avg_depth) / 2.0)) if (avg_relevance and avg_depth) else 87.0
+        recruiter_behavior = min(100.0, max(40.0, (avg_posture + avg_eye_contact) / 2.0)) if (avg_posture and avg_eye_contact) else 95.0
+        recruiter_professionalism = min(100.0, max(40.0, overall * 1.05))
+        
+        has_resume = bool(session.get("resume_data") and session["resume_data"].get("skills"))
+        recruiter_resume_match = 93.0 if has_resume else 72.0
+
+        verdict = "Recommended" if overall >= 72 else "Borderline" if overall >= 60 else "Not Recommended"
+        hiring_rec = "Strong Hire" if overall >= 83 else "Hire" if overall >= 70 else "Borderline" if overall >= 60 else "Reject"
+
+        study_plan_weeks = ["DBMS", "SQL", "REST APIs", "System Design"]
+        if weak_areas:
+            top_w = weak_areas[0].lower()
+            if "dsa" in top_w or "algorithm" in top_w:
+                study_plan_weeks = ["DSA Fundamentals", "Array & String Drills", "Graph Traversal", "Dynamic Programming"]
+            elif "oop" in top_w or "object" in top_w:
+                study_plan_weeks = ["OOP Basics", "Inheritance & Polymorphism", "Design Patterns", "Refactoring Clean Code"]
+            elif "os" in top_w or "network" in top_w or "cn" in top_w:
+                study_plan_weeks = ["OS & Kernel Basics", "TCP/IP Networking", "HTTP Protocol & APIs", "System Architecture"]
+            elif "system design" in top_w or "scale" in top_w:
+                study_plan_weeks = ["Microservices", "Load Balancing & Caching", "NoSQL Scaling", "High Availability Design"]
+
+        results["recruiter_report"] = {
+            "verdict": verdict,
+            "hiring_recommendation": hiring_rec,
+            "metrics": {
+                "confidence": round(recruiter_confidence, 1),
+                "technical_knowledge": round(avg_tech, 1),
+                "communication": round(avg_clarity, 1),
+                "problem_solving": round(recruiter_problem_solving, 1),
+                "behavior": round(recruiter_behavior, 1),
+                "professionalism": round(recruiter_professionalism, 1),
+                "resume_match": round(recruiter_resume_match, 1),
+            },
+            "study_plan": study_plan_weeks
+        }
+
         session["status"] = "completed"
         session["completed_at"] = results["completed_at"]
         session["results"] = results

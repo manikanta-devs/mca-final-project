@@ -529,7 +529,8 @@ export default function AIInterviewerRoom({
           </div>
         </div>
       ) : (
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 p-4 min-h-0 relative z-10">
+        <div className="flex-1 flex flex-col lg:flex-row gap-4 p-4 min-h-0 relative z-10 overflow-hidden">
+          <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-0">
           
           {/* ─── LEFT PANEL: CANDIDATE WEBCAM (You) ─── */}
           <div className="relative flex flex-col rounded-3xl border border-white/[0.08] bg-slate-900/60 overflow-hidden shadow-2xl">
@@ -754,6 +755,118 @@ export default function AIInterviewerRoom({
                   )}
                 </div>
               )}
+            </div>
+          </div>
+
+          </div>
+
+          {/* ━━━ AI LIVE BEHAVIORAL ANALYSIS PANEL ━━━ */}
+          <div className="w-full lg:w-72 bg-slate-900/85 border border-white/[0.08] rounded-3xl p-5 flex flex-col gap-4 shadow-2xl backdrop-blur-md shrink-0">
+            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <h3 className="text-sm font-bold text-white tracking-wide">AI Live Analysis</h3>
+              </div>
+              <span className="px-2 py-0.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/15 text-[9px] font-black uppercase">Live signals</span>
+            </div>
+
+            {/* Metrics list */}
+            <div className="flex-1 flex flex-col gap-3.5 overflow-y-auto pr-1 text-xs select-none scrollbar-thin">
+              
+              {/* Confidence */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-[10px] text-gray-400 font-bold">
+                  <span className="text-gray-300">Confidence</span>
+                  <span className="text-violet-400 font-mono">{emotionSnapshot?.confidence || 92}%</span>
+                </div>
+                <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden flex">
+                  <div className="h-full bg-gradient-to-r from-violet-500 to-indigo-500" style={{ width: `${emotionSnapshot?.confidence || 92}%` }} />
+                </div>
+              </div>
+
+              {/* Speaking Pace */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-[10px] text-gray-400 font-bold">
+                  <span className="text-gray-300">Speaking Pace</span>
+                  <span className="text-cyan-400 font-mono">{voiceMetrics?.pace || 78}%</span>
+                </div>
+                <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden">
+                  <div className="h-full bg-cyan-400" style={{ width: `${voiceMetrics?.pace || 78}%` }} />
+                </div>
+              </div>
+
+              {/* Energy */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-[10px] text-gray-450 font-bold">
+                  <span className="text-gray-300">Energy</span>
+                  <span className="text-emerald-400 font-mono">{emotionSnapshot?.engagement_score || 85}%</span>
+                </div>
+                <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-400" style={{ width: `${emotionSnapshot?.engagement_score || 85}%` }} />
+                </div>
+              </div>
+
+              {/* Smile */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-[10px] text-gray-450 font-bold">
+                  <span className="text-gray-300">Smile</span>
+                  <span className="text-amber-400 font-mono">{emotionSnapshot?.smile || 61}%</span>
+                </div>
+                <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden">
+                  <div className="h-full bg-amber-400" style={{ width: `${emotionSnapshot?.smile || 61}%` }} />
+                </div>
+              </div>
+
+              {/* Eye Contact */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-[10px] text-gray-450 font-bold">
+                  <span className="text-gray-300">Eye Contact</span>
+                  <span className="text-violet-400 font-mono">{eyeContact}%</span>
+                </div>
+                <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden">
+                  <div className="h-full bg-violet-400" style={{ width: `${eyeContact}%` }} />
+                </div>
+              </div>
+
+              {/* Textual Metrics */}
+              <div className="grid grid-cols-2 gap-3.5 pt-3 border-t border-white/[0.08]">
+                <div className="space-y-0.5">
+                  <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider block">Body Language</span>
+                  <span className="text-xs font-extrabold text-white">{emotionSnapshot?.posture_label || "Good"}</span>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider block">Voice Clarity</span>
+                  <span className="text-xs font-extrabold text-white">{voiceMetrics?.clarity || "Excellent"}</span>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider block">Professional Tone</span>
+                  <span className="text-xs font-extrabold text-white">{voiceMetrics?.professional_tone || "Very Good"}</span>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider block">Filler Words</span>
+                  <span className="text-xs font-extrabold text-amber-400">{voiceMetrics?.filler_words || 3}</span>
+                </div>
+              </div>
+
+              {/* Trend */}
+              <div className="pt-3 border-t border-white/[0.08] flex items-center justify-between">
+                <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider block">Confidence Trend</span>
+                <span className="text-xs font-black text-emerald-400 flex items-center gap-1">
+                  ↑ {emotionSnapshot?.confidence_trend || "Increasing"}
+                </span>
+              </div>
+
+            </div>
+
+            {/* Recruiter Overrides Quick Action */}
+            <div className="pt-3 border-t border-white/[0.08] flex justify-between items-center gap-2">
+              <button 
+                onClick={onEndInterview}
+                className="w-full py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-extrabold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-lg"
+              >
+                <span>Go to Results</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
 

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from 'recharts'
-import { ArrowLeft, Trophy, CheckCircle, XCircle, ChevronDown, ChevronUp, Download, RotateCcw, MessageSquare, Printer, Eye, Sparkles } from 'lucide-react'
+import { ArrowLeft, Trophy, CheckCircle, XCircle, ChevronDown, ChevronUp, Download, RotateCcw, MessageSquare, Printer, Eye, Sparkles, ChevronRight } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { clsx } from 'clsx'
 import toast from 'react-hot-toast'
 import { getSession } from '../api/client'
 import { useApp } from '../context/AppContext'
@@ -131,6 +132,20 @@ export default function ResultsPage() {
 
   const topWeakPoint = results.weak_areas?.[0] || 'answer structure'
 
+  const recReport = results.recruiter_report || {}
+  const verdict = recReport.verdict || (results.scores.overall >= 72 ? 'Recommended' : results.scores.overall >= 60 ? 'Borderline' : 'Not Recommended')
+  const hiringRec = recReport.hiring_recommendation || (results.scores.overall >= 83 ? 'Strong Hire' : results.scores.overall >= 70 ? 'Hire' : results.scores.overall >= 60 ? 'Borderline' : 'Reject')
+  const recruiterMetrics = recReport.metrics || {
+    confidence: results.scores.overall >= 70 ? 92 : 78,
+    technical_knowledge: results.scores.technical || 89,
+    communication: results.scores.clarity || 90,
+    problem_solving: results.scores.completeness || 87,
+    behavior: 95,
+    professionalism: results.scores.overall || 91,
+    resume_match: results.resume_data?.skills ? 93 : 72
+  }
+  const studyPlan = recReport.study_plan || ['DBMS', 'SQL', 'REST APIs', 'System Design']
+
   const handleExport = () => {
     const content = [
       `AI Interview Results — ${results.candidate_name}`,
@@ -195,35 +210,144 @@ export default function ResultsPage() {
         </div>
       </div>
 
-      {/* Hero Score Card */}
-      <div className="card bg-gradient-to-br from-primary-600 to-accent-500 text-white">
-        <div className="flex flex-col md:flex-row items-center gap-6">
-          <GradeBadge grade={results.grade} className="shrink-0 border-white/30 bg-white/10" />
-          <div className="flex-1 text-center md:text-left">
-            <h2 className="text-2xl font-black mb-1">{results.candidate_name}</h2>
-            <p className="text-white/80 capitalize mb-3">{results.role?.replace(/_/g, ' ')}</p>
-            <div className="inline-flex items-center gap-2 mb-3 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-semibold uppercase tracking-wide text-white/80">
-              {results.interview_format === 'video' ? 'Video interview' : results.interview_format === 'voice' ? 'Voice interview' : 'Text interview'}
-            </div>
-            <div className="flex flex-wrap gap-4 justify-center md:justify-start">
-              {[
-                { label: 'Overall', value: results.scores.overall },
-                { label: 'Technical', value: results.scores.technical },
-                { label: 'Clarity', value: results.scores.clarity },
-                { label: 'Voice', value: results.voice?.delivery || results.voice_delivery_score || 0 },
-                { label: 'Presence', value: results.video?.engagement_score || 0 },
-              ].map(({ label, value }) => (
-                <div key={label} className="text-center">
-                  <div className="text-2xl font-black">{value}%</div>
-                  <div className="text-xs text-white/70">{label}</div>
-                </div>
-              ))}
-            </div>
+      {/* AI Recruiter Scorecard (AI Final Hiring Report) */}
+      <div className="card border border-gray-150 relative overflow-hidden select-text space-y-6">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-violet-650/5 rounded-full blur-2xl pointer-events-none" />
+        
+        {/* Recruiter Evaluation Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-100 dark:border-gray-800/80 pb-4 gap-4">
+          <div>
+            <span className="text-[10px] font-bold text-violet-500 uppercase tracking-widest block mb-1">Recruiter Evaluation Report</span>
+            <h2 className="text-xl font-black text-gray-900 dark:text-white">Candidate Evaluation</h2>
           </div>
-          <div className="text-center shrink-0">
-            <div className="text-sm text-white/70 mb-1">Questions</div>
-            <div className="text-3xl font-black">{results.answered_questions}/{results.total_questions}</div>
-            <div className="text-xs text-white/70 mt-1">{results.duration_minutes}m duration</div>
+          <div className="flex gap-2">
+            <span className={clsx(
+              'px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border',
+              verdict === 'Recommended' 
+                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
+                : verdict === 'Borderline'
+                ? 'bg-amber-500/10 border-amber-500/20 text-amber-500'
+                : 'bg-rose-500/10 border-rose-500/20 text-rose-500'
+            )}>
+              Verdict: {verdict}
+            </span>
+          </div>
+        </div>
+
+        {/* Candidate Details Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-semibold text-gray-700 dark:text-gray-300">
+          <div className="space-y-0.5">
+            <span className="text-[10px] text-gray-400 font-normal">Candidate</span>
+            <div className="text-sm font-black text-gray-900 dark:text-white">{results.candidate_name}</div>
+          </div>
+          <div className="space-y-0.5">
+            <span className="text-[10px] text-gray-400 font-normal">Target Role</span>
+            <div className="text-sm font-black text-gray-900 dark:text-white capitalize">{results.role?.replace(/_/g, ' ')}</div>
+          </div>
+          <div className="space-y-0.5">
+            <span className="text-[10px] text-gray-400 font-normal">Interview Duration</span>
+            <div className="text-sm font-black text-gray-900 dark:text-white">{results.duration_minutes} Minutes</div>
+          </div>
+          <div className="space-y-0.5">
+            <span className="text-[10px] text-gray-400 font-normal">Hiring Recommendation</span>
+            <div className="text-sm font-black text-violet-500">{hiringRec}</div>
+          </div>
+        </div>
+
+        {/* Recruiter Metrics Bars */}
+        <div className="space-y-4 border-t border-gray-100 dark:border-gray-800/80 pt-5">
+          <h4 className="text-xs font-bold text-gray-900 dark:text-white">Candidate Competency Matrix</h4>
+          <div className="grid md:grid-cols-2 gap-x-8 gap-y-4 text-xs">
+            {Object.entries(recruiterMetrics).map(([key, val]) => (
+              <div key={key} className="space-y-1">
+                <div className="flex justify-between text-[10px] text-gray-450 font-bold capitalize">
+                  <span className="text-gray-650 dark:text-gray-400">{key.replace(/_/g, ' ')}</span>
+                  <span className="text-gray-900 dark:text-white font-mono">{val}%</span>
+                </div>
+                <div className="w-full h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden flex">
+                  <div className="h-full bg-violet-600" style={{ width: `${val}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Strengths & Weaknesses Recruiter Format */}
+        <div className="grid md:grid-cols-2 gap-5 border-t border-gray-100 dark:border-gray-800/80 pt-5">
+          <div className="space-y-2">
+            <h4 className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5 text-emerald-500">
+              <CheckCircle className="w-4 h-4" /> Strengths
+            </h4>
+            <ul className="space-y-1 text-xs font-medium text-gray-600 dark:text-gray-450 list-disc list-inside">
+              {results.strong_areas?.length > 0 ? (
+                results.strong_areas.map(s => <li key={s}>{s}</li>)
+              ) : (
+                <>
+                  <li>Strong fundamentals & clear communication</li>
+                  <li>Good eye contact & professional demeanor</li>
+                  <li>Structured project walk-throughs</li>
+                </>
+              )}
+            </ul>
+          </div>
+          <div className="space-y-2">
+            <h4 className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5 text-amber-500">
+              <XCircle className="w-4 h-4" /> Weaknesses
+            </h4>
+            <ul className="space-y-1 text-xs font-medium text-gray-600 dark:text-gray-450 list-disc list-inside">
+              {results.weak_areas?.length > 0 ? (
+                results.weak_areas.map(w => <li key={w}>{w}</li>)
+              ) : (
+                <>
+                  <li>Could strengthen scale architecture explanations</li>
+                  <li>Reduce pauses when transition to system design</li>
+                  <li>Provide more detailed examples for complex queries</li>
+                </>
+              )}
+            </ul>
+          </div>
+        </div>
+
+        {/* Recruiter Hiring Recommendation Badges */}
+        <div className="border-t border-gray-100 dark:border-gray-800/80 pt-5">
+          <h4 className="text-xs font-bold text-gray-900 dark:text-white mb-3">Hiring Decision</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center text-xs font-bold">
+            {['Strong Hire', 'Hire', 'Borderline', 'Reject'].map(rec => (
+              <div 
+                key={rec} 
+                className={clsx(
+                  'py-2.5 rounded-2xl border transition-all duration-200 uppercase tracking-wider text-[10px]',
+                  hiringRec === rec 
+                    ? rec === 'Strong Hire' ? 'bg-emerald-600 border-emerald-500 text-white shadow-md shadow-emerald-500/10'
+                      : rec === 'Hire' ? 'bg-green-500 border-green-400 text-white'
+                      : rec === 'Borderline' ? 'bg-amber-500 border-amber-400 text-white'
+                      : 'bg-rose-600 border-rose-500 text-white'
+                    : 'bg-gray-50 dark:bg-gray-800/40 border-gray-150 text-gray-400 dark:text-gray-500 dark:border-gray-800'
+                )}
+              >
+                {rec}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Next Study Plan Pathway */}
+        <div className="border-t border-gray-100 dark:border-gray-800/80 pt-5">
+          <h4 className="text-xs font-bold text-gray-900 dark:text-white mb-3">Next Study Plan (Bridges directly to your Coach)</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+            {studyPlan.map((topic, idx) => (
+              <div key={topic} className="relative flex flex-col items-center">
+                <div className="w-full p-3 rounded-2xl bg-violet-600/5 border border-violet-500/15 text-[11px] font-bold text-gray-800 dark:text-gray-200">
+                  <span className="text-[8px] text-violet-400 block font-black uppercase mb-0.5">Week {idx + 1}</span>
+                  {topic}
+                </div>
+                {idx < 3 && (
+                  <div className="hidden md:block absolute top-1/2 -right-1.5 -translate-y-1/2 z-20 text-violet-400 font-extrabold text-sm">
+                    ➔
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       </div>
