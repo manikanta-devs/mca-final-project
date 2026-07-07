@@ -742,12 +742,12 @@ export default function InterviewPage() {
       isTelemetryOverriddenRef.current = false
       setShowHint(false)
       setShowTypingFallback(false)
-      setPhase(PHASE.ROOM_ENTRY)
+      setPhase(PHASE.INTERVIEWING)
       if (typeof window !== 'undefined') {
         window._heardHello = false
       }
       if (interviewFormat !== 'text') {
-        setZoomPhase('connecting')
+        setZoomPhase(null)
         setOnboardingQuestionText('')
         hasGreetedRef.current = false
         hasEncouragedRef.current = false
@@ -1706,7 +1706,7 @@ export default function InterviewPage() {
       const recognition = new Recognition()
 
 
-      recognition.continuous = false
+      recognition.continuous = true
 
 
       recognition.interimResults = true
@@ -1832,7 +1832,6 @@ export default function InterviewPage() {
       recognition.start()
 
       isStartingCaptureRef.current = false
-      toast.success(useVideo ? 'Video interview started' : 'Voice capture started')
     } catch (error) {
       isStartingCaptureRef.current = false
       const msg = getFriendlyVoiceErrorMessage(error);
@@ -1949,12 +1948,12 @@ export default function InterviewPage() {
         setShowTypingFallback(false)
 
 
-        setPhase(PHASE.ROOM_ENTRY)
+        setPhase(PHASE.INTERVIEWING)
         if (typeof window !== 'undefined') {
           window._heardHello = false
         }
         if (interviewFormat !== 'text') {
-          setZoomPhase('connecting')
+          setZoomPhase(null)
           setOnboardingQuestionText('')
           hasGreetedRef.current = false
           hasEncouragedRef.current = false

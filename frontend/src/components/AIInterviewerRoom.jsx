@@ -150,7 +150,7 @@ export default function AIInterviewerRoom({
 
   const [showSettings, setShowSettings] = useState(false)
   const [showTypeInput, setShowTypeInput] = useState(false)
-  const [showDevPanel, setShowDevPanel] = useState(true)
+  const [showDevPanel, setShowDevPanel] = useState(false)
   const [godModeActive, setGodModeActive] = useState(true)
   const [typedAnswer, setTypedAnswer] = useState('')
   const [isFullscreen, setIsFullscreen] = useState(false)

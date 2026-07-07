@@ -511,33 +511,33 @@ export default function CommunicationCoachPage() {
                   </button>
                 </div>
 
-                <div className="space-y-3.5">
-                  <div className="space-y-1">
+                <div className="space-y-3.5 max-w-full break-words">
+                  <div className="space-y-1 max-w-full break-words">
                     <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Conceptual Definition</span>
-                    <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed font-medium">{mentorAnswer.definition}</p>
+                    <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed font-medium break-words whitespace-pre-wrap">{mentorAnswer.definition}</p>
                   </div>
 
-                  <div className="space-y-1 p-3.5 rounded-2xl bg-amber-500/5 border border-amber-500/20">
+                  <div className="space-y-1 p-3.5 rounded-2xl bg-amber-500/5 border border-amber-500/20 max-w-full break-words">
                     <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider block">Simplified Analogy</span>
-                    <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed font-medium font-sans">{mentorAnswer.analogy}</p>
+                    <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed font-medium font-sans break-words whitespace-pre-wrap">{mentorAnswer.analogy}</p>
                   </div>
 
                   {mentorAnswer.code && (
-                    <div className="space-y-1">
+                    <div className="space-y-1 max-w-full overflow-hidden">
                       <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Ideal Output Snippet</span>
-                      <pre className="p-4 rounded-2xl bg-slate-950 text-emerald-400 font-mono text-[11px] overflow-x-auto select-text leading-relaxed">
+                      <pre className="p-4 rounded-2xl bg-slate-950 text-emerald-400 font-mono text-[11px] overflow-x-auto select-text leading-relaxed max-w-full break-all whitespace-pre-wrap">
                         <code>{mentorAnswer.code}</code>
                       </pre>
                     </div>
                   )}
 
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 max-w-full break-words">
                     <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Speaking Guidelines & Key points</span>
-                    <ul className="space-y-1.5 text-xs font-semibold text-gray-600 dark:text-gray-400">
+                    <ul className="space-y-1.5 text-xs font-semibold text-gray-600 dark:text-gray-400 max-w-full break-words">
                       {mentorAnswer.tips.map((t, i) => (
-                        <li key={i} className="flex items-center gap-2">
-                          <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                          <span>{t}</span>
+                        <li key={i} className="flex items-start gap-2 max-w-full break-words">
+                          <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                          <span className="break-words whitespace-pre-wrap">{t}</span>
                         </li>
                       ))}
                     </ul>
@@ -636,9 +636,20 @@ export default function CommunicationCoachPage() {
                 >
                   <option value="">(Recommended) DBMS & SQL Roadmap</option>
                   <option value="python">Python Programming Roadmap</option>
+                  <option value="javascript">JavaScript / React Roadmap</option>
+                  <option value="java">Java Programming Roadmap</option>
+                  <option value="cpp">C++ Programming Roadmap</option>
                   <option value="dsa">DSA & Algorithms Roadmap</option>
-                  <option value="web_dev">Web Development Roadmap</option>
+                  <option value="operating_systems">Operating Systems Roadmap</option>
+                  <option value="networks">Computer Networks Roadmap</option>
+                  <option value="oop">Object-Oriented Programming Roadmap</option>
+                  <option value="system_design">System Design Roadmap</option>
+                  <option value="rest_apis">REST APIs & Backend Roadmap</option>
+                  <option value="git">Git Version Control Roadmap</option>
+                  <option value="cloud">Cloud Computing Roadmap</option>
                   <option value="aptitude">Quantitative Aptitude Roadmap</option>
+                  <option value="logical">Logical Reasoning Roadmap</option>
+                  <option value="verbal">Verbal Ability Roadmap</option>
                   <option value="hr">Behavioral/HR Roadmap</option>
                 </select>
                 <button

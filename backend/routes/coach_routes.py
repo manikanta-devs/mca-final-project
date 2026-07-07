@@ -103,12 +103,13 @@ def coach_ask():
             return jsonify({"error": "Question is required"}), 400
 
         prompt = f"""You are a 24/7 senior tech and career mentor. Provide a structured, helpful explanation for the query: "{question}"
-        IMPORTANT: Explain the topic in extremely simple, friendly, and easy-to-understand language, as if you are explaining it to a 10-year-old child or a complete beginner. Use vivid, simple analogies.
+        IMPORTANT: Explain the topic in extremely simple, friendly, and easy-to-understand language.
+        Be extremely brief, concise, and structured. Keep the definition to 1-2 sentences and the analogy to 2 sentences max. Keep all text concise to avoid scroll bloat.
         Format your response strictly as a JSON object with the following keys:
-        - definition: A very simple, friendly 1-2 sentence definition (simple enough for a kid to understand).
+        - definition: A very simple, friendly 1-2 sentence definition.
         - analogy: A creative, extremely easy-to-understand real-world analogy.
         - example: A technical example showing structure, data payloads, or code snippets (keep it basic and clear).
-        - model_answer: A premium mock answer the candidate can speak out loud in an interview to impress the interviewer.
+        - model_answer: A premium mock answer the candidate can speak out loud in an interview.
         - follow_ups: A list of 3 expected follow-up questions they'll ask next.
         
         CRITICAL RULES:
