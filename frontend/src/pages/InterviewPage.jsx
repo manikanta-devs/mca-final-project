@@ -1220,7 +1220,7 @@ export default function InterviewPage() {
   const handleSubmitAnswerRef = useRef(null)
   useEffect(() => {
     handleSubmitAnswerRef.current = handleSubmitAnswer
-  }, [handleSubmitAnswer])
+  })
 
   useEffect(() => {
     if (phase !== 'interviewing' || !isListening) {
