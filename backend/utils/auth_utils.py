@@ -46,17 +46,20 @@ def verify_token(token: str, secret: str = DEFAULT_SECRET) -> dict:
         # Fallback/bypass for development/testing environments to support mock tokens in Playwright tests
         is_dev_or_test = False
         try:
+            import os
+            is_prod = os.environ.get("FLASK_ENV") == "production"
             from flask import has_app_context
             if has_app_context():
-                is_dev_or_test = current_app.config.get("TESTING") or current_app.config.get("DEBUG") or current_app.config.get("ENV") == "development"
+                is_prod = is_prod or current_app.config.get("ENV") == "production"
+                is_dev_or_test = (current_app.config.get("TESTING") or current_app.config.get("DEBUG") or current_app.config.get("ENV") == "development") and not is_prod
             else:
-                import os
-                is_dev_or_test = os.environ.get("FLASK_ENV") == "development" or os.environ.get("FLASK_DEBUG") == "1"
+                is_dev_or_test = (os.environ.get("FLASK_ENV") == "development" or os.environ.get("FLASK_DEBUG") == "1") and not is_prod
         except Exception:
             is_dev_or_test = False
 
-        if is_dev_or_test and token.startswith("token_"):
-            return {"username": token[6:], "exp": int(time.time()) + 86400}
+        if is_dev_or_test and token and token.startswith("token_"):
+            username = token[6:] if len(token) > 6 else "Candidate"
+            return {"username": username, "exp": int(time.time()) + 86400}
 
         parts = token.split(".")
         if len(parts) != 3:
@@ -124,17 +127,17 @@ def token_required(f):
         if not token:
             # Fallback for route tests under TESTING mode
             try:
+                import os
+                is_prod = os.environ.get("FLASK_ENV") == "production"
                 from flask import has_app_context
-                if has_app_context() and current_app.config.get("TESTING"):
-                    request.username = "Candidate"
-                    return f(*args, **kwargs)
+                if has_app_context():
+                    is_prod = is_prod or current_app.config.get("ENV") == "production"
+                    if current_app.config.get("TESTING") and not is_prod:
+                        request.username = "Candidate"
+                        return f(*args, **kwargs)
             except Exception:
                 pass
             return jsonify({"error": "Authentication token is missing"}), 401
-
-        if token == "token_Candidate" or (token and token.startswith("token_")):
-            request.username = token.split("_")[1] if "_" in token else "Candidate"
-            return f(*args, **kwargs)
 
         secret = current_app.config.get("SECRET_KEY", DEFAULT_SECRET)
         payload = verify_token(token, secret)

@@ -63,8 +63,11 @@ def create_app():
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
     os.makedirs("data", exist_ok=True)
 
+    from config import get_config
+    config_obj = get_config()
+
     # ─── CORS Configuration ──────────────────────────────────
-    allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
+    allowed_origins = config_obj.ALLOWED_ORIGINS
     CORS(
         app,
         resources={
@@ -78,8 +81,6 @@ def create_app():
     )
 
     # ─── Rate Limiting ──────────────────────────────────────
-    from config import get_config
-    config_obj = get_config()
     limiter = Limiter(  # noqa: F841
         app=app,
         key_func=get_remote_address,
@@ -94,19 +95,30 @@ def create_app():
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "SAMEORIGIN"
         response.headers["X-XSS-Protection"] = "1; mode=block"
-        if app.config["ENV"] == "production":
+        is_prod = app.config.get("ENV") == "production"
+        if is_prod:
             response.headers["Strict-Transport-Security"] = (
                 "max-age=31536000; includeSubDomains"
             )
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-            "font-src 'self' https://fonts.gstatic.com; "
-            "img-src 'self' data: https:; "
-            "media-src 'self' data: blob:; "
-            "connect-src 'self' http://localhost:5000 http://127.0.0.1:5000 https:;"
-        )
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; "
+                "script-src 'self' https://cdn.jsdelivr.net; "
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+                "font-src 'self' https://fonts.gstatic.com; "
+                "img-src 'self' data: https:; "
+                "media-src 'self' data: blob:; "
+                "connect-src 'self' https:;"
+            )
+        else:
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; "
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+                "font-src 'self' https://fonts.gstatic.com; "
+                "img-src 'self' data: https:; "
+                "media-src 'self' data: blob:; "
+                "connect-src 'self' http://localhost:5000 http://127.0.0.1:5000 https:;"
+            )
         return response
 
     # ─── Request timing middleware ────────────────────────────
@@ -130,11 +142,13 @@ def create_app():
     from routes.interview_routes import interview_bp
     from routes.analytics_routes import analytics_bp
     from routes.quiz_routes import quiz_bp
+    from routes.coach_routes import coach_bp
 
     app.register_blueprint(resume_bp, url_prefix="/api")
     app.register_blueprint(interview_bp, url_prefix="/api")
     app.register_blueprint(analytics_bp, url_prefix="/api")
     app.register_blueprint(quiz_bp, url_prefix="/api")
+    app.register_blueprint(coach_bp, url_prefix="/api")
 
     # ─── Auth endpoints ─────────────────────────────────────
     import hashlib

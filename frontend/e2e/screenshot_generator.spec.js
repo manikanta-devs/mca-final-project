@@ -30,11 +30,21 @@ test('Generate App Screenshots', async ({ page }) => {
   await page.fill('#auth-confirm-password', 'password123');
   await page.screenshot({ path: path.join(screenshotDir, '03_auth_register.png') });
 
-  // 4. Log in (we use direct token insertion for speed, but let's do it via localStorage first)
-  await page.evaluate(() => {
-    localStorage.setItem('token', 'token_ScreenshotUser');
-    localStorage.setItem('username', 'ScreenshotUser');
+  // Register the user first via API, then log in to fetch a real JWT
+  const apiContext = page.request;
+  await apiContext.post('http://localhost:5000/api/auth/register', {
+    data: { username: 'screenshot_user', password: 'password123' }
   });
+
+  const loginRes = await apiContext.post('http://localhost:5000/api/auth/login', {
+    data: { username: 'screenshot_user', password: 'password123' }
+  });
+  const { token } = await loginRes.json();
+
+  await page.evaluate(({ token }) => {
+    localStorage.setItem('token', token);
+    localStorage.setItem('username', 'screenshot_user');
+  }, { token });
 
   // Navigate to Dashboard
   await page.goto('/dashboard');

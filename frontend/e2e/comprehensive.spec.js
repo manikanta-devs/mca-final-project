@@ -4,11 +4,26 @@ test('AI Interview System Comprehensive E2E Test', async ({ page }) => {
   // 1. Navigate to Landing Page
   await page.goto('/');
 
-  // Set mock token in localStorage
-  await page.evaluate(() => {
-    localStorage.setItem('token', 'token_JaneDoe');
-    localStorage.setItem('username', 'JaneDoe');
+  // Register and Login to get a real signed JWT
+  const apiContext = page.request;
+  const ts = Date.now();
+  const username = `janedoe_${ts}`;
+  const password = 'TestPassword123!';
+
+  await apiContext.post('http://localhost:5000/api/auth/register', {
+    data: { username, password }
   });
+
+  const loginRes = await apiContext.post('http://localhost:5000/api/auth/login', {
+    data: { username, password }
+  });
+  const { token } = await loginRes.json();
+
+  // Set signed token in localStorage
+  await page.evaluate(({ token, username }) => {
+    localStorage.setItem('token', token);
+    localStorage.setItem('username', username);
+  }, { token, username });
 
   await expect(page.locator('h1')).toContainText('AstraPrep');
 

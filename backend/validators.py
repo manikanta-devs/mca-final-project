@@ -8,10 +8,13 @@ class ResumeUploadRequest(BaseModel):
     """Resume upload validation."""
 
     job_role: str = Field(
-        ..., min_length=1, max_length=100, description="Target job role"
+        default="Software Engineer", min_length=1, max_length=100, description="Target job role"
     )
     experience_level: Optional[str] = Field(
         default="mid", description="Experience level"
+    )
+    job_description: Optional[str] = Field(
+        default="", max_length=5000, description="Target job description"
     )
 
     @field_validator("job_role")
@@ -21,6 +24,18 @@ class ResumeUploadRequest(BaseModel):
         if not v.strip():
             raise ValueError("Job role cannot be empty")
         return v.strip()
+
+
+class CoachAskRequest(BaseModel):
+    """Coach career mentor ask validation."""
+
+    question: str = Field(..., min_length=1, max_length=1000)
+
+
+class RoadmapRequest(BaseModel):
+    """Personalized roadmap generation validation."""
+
+    custom_topic: Optional[str] = Field(default="", max_length=200)
 
 
 class InterviewRequest(BaseModel):

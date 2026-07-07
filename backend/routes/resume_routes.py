@@ -17,6 +17,26 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def validate_file_content(filepath):
+    try:
+        with open(filepath, "rb") as f:
+            header = f.read(4)
+        # PDF magic bytes: %PDF
+        if header.startswith(b"%PDF"):
+            return True
+        # DOCX magic bytes: PK\x03\x04 (zip archive)
+        if header.startswith(b"PK\x03\x04"):
+            return True
+        # TXT: read and verify it's valid UTF-8/ASCII without null bytes
+        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+            chunk = f.read(1024)
+            if "\x00" in chunk:
+                return False
+        return True
+    except Exception:
+        return False
+
+
 @resume_bp.route("/resume/upload", methods=["POST"])
 @token_required
 def upload_resume():
@@ -46,6 +66,21 @@ def upload_resume():
         filepath = os.path.join(upload_folder, filename)
         file.save(filepath)
 
+        # Enforce content magic-byte checks
+        if not validate_file_content(filepath):
+            try:
+                os.remove(filepath)
+            except Exception:
+                pass
+            return jsonify({"error": "Invalid file content. The file type does not match its extension."}), 400
+
+        from pydantic import ValidationError
+        from validators import ResumeUploadRequest
+        try:
+            ResumeUploadRequest(job_description=request.form.get("job_description"))
+        except ValidationError as val_err:
+            return jsonify({"error": "Validation failed", "message": val_err.errors()}), 400
+
         logger.info(f"Processing resume: {filename}")
         result = resume_service.analyze_resume(filepath)
 
@@ -68,7 +103,10 @@ def upload_resume():
 
     except Exception as e:
         logger.error(f"Resume upload error: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({
+            "error": "Internal server error",
+            "message": str(e) if current_app.config.get("ENV") == "development" else "An error occurred"
+        }), 500
 
 
 @resume_bp.route("/resume/analyze-text", methods=["POST"])
@@ -100,7 +138,10 @@ def analyze_text():
 
     except Exception as e:
         logger.error(f"Text analysis error: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({
+            "error": "Internal server error",
+            "message": str(e) if current_app.config.get("ENV") == "development" else "An error occurred"
+        }), 500
 
 
 @resume_bp.route("/resume/match-job", methods=["POST"])
@@ -125,7 +166,10 @@ def match_resume_to_job():
 
     except Exception as e:
         logger.error(f"Job match error: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({
+            "error": "Internal server error",
+            "message": str(e) if current_app.config.get("ENV") == "development" else "An error occurred"
+        }), 500
 
 
 @resume_bp.route("/resume/roles", methods=["GET"])

@@ -17,7 +17,7 @@ class Config:
     ALLOWED_EXTENSIONS = {"pdf", "docx", "txt"}
 
     # API
-    ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+    ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
 
     # Rate limiting
     RATE_LIMIT_ENABLED = os.getenv("RATE_LIMIT_ENABLED", "false").lower() == "true"
@@ -56,7 +56,8 @@ class ProductionConfig(Config):
     FLASK_ENV = "production"
     DEBUG = False
     TESTING = False
-    RATE_LIMIT_ENABLED = os.getenv("RATE_LIMIT_ENABLED", "true").lower() == "true"
+    # Hardcode RATE_LIMIT_ENABLED to True in production unless explicitly disabled by admin escape hatch
+    RATE_LIMIT_ENABLED = os.getenv("ADMIN_DISABLE_RATE_LIMIT", "false").lower() != "true"
     # Enforce secure cookies in production
     SESSION_COOKIE_SECURE = True
     SESSION_COOKIE_HTTPONLY = True
