@@ -1263,21 +1263,10 @@ export default function InterviewPage() {
       )
       setCoachingTips(tips)
 
-      // Auto-submit silence detection based on transcript growth
-      if (transcript.length > 2) {
-        if (transcript.length > lastTranscriptLengthRef.current) {
-          lastTranscriptLengthRef.current = transcript.length
-          lastSpeechTimeRef.current = Date.now()
-          setEncouragementText('')
-        } else {
-          const timeSinceLastSpeech = Date.now() - lastSpeechTimeRef.current
-          const threshold = 3800
-          if (timeSinceLastSpeech > threshold) {
-            console.log(`Silence threshold of ${threshold}ms reached. Automatically submitting response...`);
-            lastTranscriptLengthRef.current = 0
-            handleSubmitAnswerRef.current?.()
-          }
-        }
+      if (transcript.length > lastTranscriptLengthRef.current) {
+        lastTranscriptLengthRef.current = transcript.length
+        lastSpeechTimeRef.current = Date.now()
+        setEncouragementText('')
       }
     }, 1000)
 
