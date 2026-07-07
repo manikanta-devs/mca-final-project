@@ -998,18 +998,35 @@ export default function InterviewPage() {
     utterance.lang = selectedVoice?.lang || 'en-US'
     utterance.rate = voiceProfile.rate
     utterance.pitch = voiceProfile.pitch
-    utterance.onstart = () => setIsInterviewerSpeaking(true)
+    utterance.onstart = () => {
+      setIsInterviewerSpeaking(true)
+      // Mute the mic hardware track while Sarah/Marcus is speaking
+      // This prevents the speakers from being picked up by the microphone
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getAudioTracks().forEach(t => { t.enabled = false })
+      }
+    }
 
     let fallbackTimeout = null
     const handleSpeechEnd = () => {
       if (fallbackTimeout) clearTimeout(fallbackTimeout)
       setIsInterviewerSpeaking(false)
-      if (zoomPhase === 'identity_confirm') {
-        setZoomPhase(null)
-      } else if (zoomPhase === 'closing') {
-        handleFinish()
-      }
-      startVoiceCapture().catch(() => {})
+      // Re-enable mic track and give 600ms for echo to clear before listening again
+      setTimeout(() => {
+        if (mediaStreamRef.current && micEnabled) {
+          mediaStreamRef.current.getAudioTracks().forEach(t => { t.enabled = true })
+        }
+        // Clear any transcript captured while AI was speaking before restarting
+        finalTranscriptRef.current = ''
+        setVoiceTranscript('')
+        setVoiceInterim('')
+        if (zoomPhase === 'identity_confirm') {
+          setZoomPhase(null)
+        } else if (zoomPhase === 'closing') {
+          handleFinish()
+        }
+        startVoiceCapture().catch(() => {})
+      }, 600)
     }
 
     utterance.onend = handleSpeechEnd
