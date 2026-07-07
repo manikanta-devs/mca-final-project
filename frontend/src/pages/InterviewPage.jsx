@@ -3626,6 +3626,24 @@ export default function InterviewPage() {
                       <li>If you still experience issues, click the <strong>Keyboard/Type icon (⌨️)</strong> above to enable the <strong className="text-gray-300">Typed Fallback mode</strong> and type your answers.</li>
                     </ul>
                   </div>
+                  <div className="flex gap-2 pt-2 border-t border-red-500/10">
+                    <button
+                      onClick={startVoiceCapture}
+                      className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg transition-colors text-[11px] flex items-center gap-1"
+                    >
+                      <Play className="w-3 h-3 fill-white" />
+                      <span>Retry Mic Capture</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setVoiceError('')
+                        setShowTypingFallback(true)
+                      }}
+                      className="px-3 py-1 bg-white/5 hover:bg-white/10 text-gray-300 font-bold rounded-lg border border-white/10 transition-colors text-[11px]"
+                    >
+                      Use Typed Input
+                    </button>
+                  </div>
                 </div>
 
 

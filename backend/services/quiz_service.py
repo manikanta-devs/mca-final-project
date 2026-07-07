@@ -277,6 +277,10 @@ class QuizService:
             session["responses"].append(response)
         else:
             session["responses"][question_index] = response
+        
+        # Dynamically adapt difficulty for the next question
+        self._adapt_difficulty(session, question_index, is_correct)
+        
         self._save_to_disk()
 
         return {
@@ -356,3 +360,50 @@ class QuizService:
             }
             for session in sessions
         ]
+
+    def _adapt_difficulty(self, session: dict, question_index: int, is_correct: bool):
+        next_idx = question_index + 1
+        if next_idx >= len(session["questions"]):
+            return  # No more questions to adapt
+        
+        # Calculate consecutive performance
+        responses = session.get("responses", [])
+        corrects = [r.get("is_correct", False) for r in responses]
+        
+        # Look at last 2 answers
+        last_few = corrects[-2:]
+        current_diff = session["questions"][next_idx].get("difficulty", "medium").lower()
+        new_diff = current_diff
+        
+        if all(last_few) and len(last_few) >= 2:
+            # Upgrade difficulty
+            if current_diff == "easy":
+                new_diff = "medium"
+            elif current_diff == "medium":
+                new_diff = "hard"
+        elif not any(last_few) and len(last_few) >= 2:
+            # Downgrade difficulty
+            if current_diff == "hard":
+                new_diff = "medium"
+            elif current_diff == "medium":
+                new_diff = "easy"
+                
+        if new_diff != current_diff:
+            logger.info(f"Adaptive Engine: Adapting difficulty of Q{next_idx + 1} from {current_diff} to {new_diff}")
+            try:
+                new_q_list = self.build_questions(
+                    topic=session.get("topic", "python"),
+                    difficulty=new_diff,
+                    num_questions=1,
+                    quiz_type=session.get("quiz_type", "technical"),
+                    company=session.get("company", "General")
+                )
+                if new_q_list:
+                    new_q = new_q_list[0]
+                    # Update ID and metadata
+                    new_q["id"] = session["questions"][next_idx]["id"]
+                    new_q["difficulty"] = new_diff
+                    # Replace the next question in the session list
+                    session["questions"][next_idx] = new_q
+            except Exception as e:
+                logger.error(f"Failed to adaptively regenerate question: {e}")

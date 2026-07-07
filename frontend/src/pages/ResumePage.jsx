@@ -291,6 +291,63 @@ export default function ResumePage() {
             </div>
           </div>
 
+          {/* Ecosystem Workflow Bridge Banners */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <button
+              onClick={() => navigate('/dashboard/coach')}
+              className="p-4 rounded-2xl bg-gradient-to-br from-violet-600/10 to-indigo-600/10 border border-violet-500/20 hover:border-violet-500/30 transition-all text-left flex flex-col justify-between h-32 group"
+            >
+              <div className="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/25 flex items-center justify-center text-violet-400">
+                <Map className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1 group-hover:text-violet-400 transition-colors">
+                  <span>Generate Study Roadmap</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1 font-normal leading-normal">
+                  Convert detected skill gaps into an interactive study guide with free online resources.
+                </p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => navigate('/dashboard/quiz')}
+              className="p-4 rounded-2xl bg-gradient-to-br from-orange-600/10 to-amber-600/10 border border-orange-500/20 hover:border-orange-500/30 transition-all text-left flex flex-col justify-between h-32 group"
+            >
+              <div className="w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/25 flex items-center justify-center text-orange-400">
+                <Brain className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1 group-hover:text-orange-400 transition-colors">
+                  <span>Test with CS Quizzes</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1 font-normal leading-normal">
+                  Attempt an adaptive technical knowledge or debugging quiz to test your readiness.
+                </p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => navigate('/dashboard/interview')}
+              className="p-4 rounded-2xl bg-gradient-to-br from-emerald-600/10 to-teal-600/10 border border-emerald-500/20 hover:border-emerald-500/30 transition-all text-left flex flex-col justify-between h-32 group"
+            >
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1 group-hover:text-emerald-400 transition-colors">
+                  <span>Start Mock Interview</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1 font-normal leading-normal">
+                  Launch a full-length, interactive interview with AI-generated custom questions.
+                </p>
+              </div>
+            </button>
+          </div>
+
           {/* Subtab Navigation Bar */}
           <div className="flex flex-wrap gap-2 p-1 bg-gray-100 dark:bg-gray-800/60 rounded-2xl">
             <button

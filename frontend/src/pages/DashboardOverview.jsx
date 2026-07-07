@@ -4,9 +4,9 @@ import { motion } from 'framer-motion'
 import {
   Sparkles, FileText, Mic, Brain, ArrowRight,
   TrendingUp, Target, Clock, Award, ChevronRight,
-  Trophy, Flame, Check, AlertTriangle, Shield, Play
+  Trophy, Flame, Check, AlertTriangle, Shield, Play, Map
 } from 'lucide-react'
-import { getAnalyticsSummary, getAnalyticsSessions, injectMockSession } from '../api/client'
+import { getAnalyticsSummary, getAnalyticsSessions, injectMockSession, getQuizSessions } from '../api/client'
 import { useApp } from '../context/AppContext'
 import LoadingSpinner from '../components/LoadingSpinner'
 import AdvancedToolPanel from '../components/AdvancedToolPanel'
@@ -29,6 +29,7 @@ export default function DashboardOverview() {
   const [loading, setLoading] = useState(true)
   const [summary, setSummary] = useState(null)
   const [recentSessions, setRecentSessions] = useState([])
+  const [quizSessions, setQuizSessions] = useState([])
   const [targetCompany, setTargetCompany] = useState('Google')
   const [targetRole, setTargetRole] = useState('Software Engineer')
 
@@ -36,9 +37,11 @@ export default function DashboardOverview() {
     Promise.allSettled([
       getAnalyticsSummary(),
       getAnalyticsSessions(3),
-    ]).then(([sumRes, sessRes]) => {
+      getQuizSessions(),
+    ]).then(([sumRes, sessRes, quizRes]) => {
       if (sumRes.status === 'fulfilled') setSummary(sumRes.value.data.summary)
       if (sessRes.status === 'fulfilled') setRecentSessions(sessRes.value.data.sessions || [])
+      if (quizRes.status === 'fulfilled') setQuizSessions(quizRes.value.data.sessions || [])
     }).finally(() => setLoading(false))
   }, [])
 
@@ -49,6 +52,52 @@ export default function DashboardOverview() {
   const hasData = summary && summary.total_sessions > 0
   const overallReadiness = hasData ? summary.avg_overall : 74
   const practiceTime = hasData ? (summary.total_sessions * 22) : 18 // simulated time
+
+  // Define Connected Workflow Steps
+  const workflowSteps = [
+    { id: 'resume', label: 'Resume Analysis', status: resumeData ? 'completed' : 'active' },
+    { id: 'roadmap', label: 'Study Roadmap', status: !resumeData ? 'locked' : (quizSessions.length === 0 ? 'active' : 'completed') },
+    { id: 'quiz', label: 'Quiz Practice', status: !resumeData ? 'locked' : (quizSessions.length === 0 ? 'active' : 'completed') },
+    { id: 'interview', label: 'Mock Interview', status: !resumeData || quizSessions.length === 0 ? 'locked' : (recentSessions.length === 0 ? 'active' : 'completed') },
+    { id: 'analytics', label: 'Analytics Insights', status: recentSessions.length > 0 ? 'active' : 'locked' }
+  ]
+
+  // Compute Dynamic Recommendation
+  let recommendation = {
+    title: "Upload your Resume",
+    text: "Let AI analyze your skills, projects, and experience to customize your preparation journey.",
+    action: "Go to Upload",
+    path: "/dashboard/resume"
+  }
+
+  if (resumeData) {
+    if (quizSessions.length === 0) {
+      recommendation = {
+        title: "Take a Topic Quiz",
+        text: "Test your CS foundation and logic skills to calibrate the adaptive assessment engine.",
+        action: "Start Quiz",
+        path: "/dashboard/quiz"
+      }
+    } else if (recentSessions.length === 0) {
+      recommendation = {
+        title: "Attempt a Mock Interview",
+        text: "Generate resume-aware questions and practice speaking with your interactive AI interviewer.",
+        action: "Start Interview",
+        path: "/dashboard/interview"
+      }
+    } else {
+      recommendation = {
+        title: "Review Performance Analytics",
+        text: "Analyze your speech pacing, filler word ratios, and technical scores to find areas of growth.",
+        action: "View Analytics",
+        path: "/dashboard/analytics"
+      }
+    }
+  }
+
+  // Calculate overall progress completion percentage
+  const completedStepsCount = workflowSteps.filter(s => s.status === 'completed').length
+  const progressPercent = Math.round((completedStepsCount / workflowSteps.length) * 100)
 
   // Smart Quick Actions (Prioritized based on lowest scores/weak areas)
   // Default values
@@ -99,17 +148,59 @@ export default function DashboardOverview() {
       <motion.div variants={fadeUp} className="card bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950/70 border-none shadow-2xl p-6 rounded-3xl relative overflow-hidden text-white">
         <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_20%_20%,rgba(99,102,241,0.18),transparent_35%),radial-gradient(circle_at_85%_10%,rgba(34,197,94,0.1),transparent_26%)]" />
         
-        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-6">
-          <div className="space-y-4">
+        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[1.3fr_0.7fr] gap-6">
+          <div className="space-y-5">
             <div>
-              <span className="text-[10px] font-bold text-violet-300 uppercase tracking-[0.2em] block mb-1">Today's AI Command Center</span>
-              <h2 className="text-2xl lg:text-3xl font-black">Today's Training Mission</h2>
+              <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-[0.2em] block mb-1">Today's AI Command Center</span>
+              <h2 className="text-2xl lg:text-3xl font-black">Interactive Practice Pathway</h2>
             </div>
 
-            <div className="grid grid-cols-3 gap-4 bg-white/[0.02] border border-white/5 p-3.5 rounded-2xl">
+            {/* Workflow steps */}
+            <div className="flex flex-wrap items-center gap-2 py-1">
+              {workflowSteps.map((step, idx) => (
+                <React.Fragment key={step.id}>
+                  <div className={clsx(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all",
+                    step.status === 'completed' && "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
+                    step.status === 'active' && "bg-indigo-500/20 border-indigo-500/30 text-indigo-300 shadow-[0_0_12px_rgba(99,102,241,0.15)]",
+                    step.status === 'locked' && "bg-white/[0.02] border-white/5 text-gray-500 opacity-60"
+                  )}>
+                    {step.status === 'completed' ? (
+                      <Check className="w-3 h-3" />
+                    ) : step.status === 'active' ? (
+                      <Sparkles className="w-3 h-3 animate-pulse" />
+                    ) : (
+                      <Shield className="w-3 h-3" />
+                    )}
+                    <span>{step.label}</span>
+                  </div>
+                  {idx < workflowSteps.length - 1 && (
+                    <ChevronRight className="w-3 h-3 text-gray-600 shrink-0" />
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
+
+            {/* Dynamic recommendation */}
+            <div className="bg-white/[0.03] border border-white/5 p-4 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
-                <div className="text-lg font-black text-violet-400">
-                  {resumeData?.coach_report?.current_score || 70}%
+                <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest block mb-0.5">Today's Recommendation</span>
+                <h4 className="text-sm font-bold text-white mb-0.5">{recommendation.title}</h4>
+                <p className="text-xs text-gray-300 font-normal leading-normal">{recommendation.text}</p>
+              </div>
+              <button 
+                onClick={() => navigate(recommendation.path)}
+                className="btn bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-4 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 shrink-0"
+              >
+                <span>{recommendation.action}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4 bg-white/[0.01] border border-white/5 p-3.5 rounded-2xl">
+              <div>
+                <div className="text-lg font-black text-indigo-400">
+                  {resumeData?.score || 70}%
                 </div>
                 <div className="text-[9px] text-gray-400 uppercase font-bold mt-0.5">Resume Score</div>
               </div>
@@ -126,25 +217,6 @@ export default function DashboardOverview() {
                 <div className="text-[9px] text-gray-400 uppercase font-bold mt-0.5">Practice Time</div>
               </div>
             </div>
-
-            {/* Checklist */}
-            <div className="space-y-2">
-              <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Today's Mission Tasks</span>
-              <div className="space-y-2 text-xs">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-bold">✓</div>
-                  <span className="text-gray-300">Complete 1 technical mock interview</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-bold">✓</div>
-                  <span className="text-gray-300">Start 5 SQL debugging challenges</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded bg-white/5 border border-white/10 text-gray-500 flex items-center justify-center text-[10px] font-bold"></div>
-                  <span className="text-gray-400">Run a communication coaching drill (clarity check)</span>
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Progress gauge */}
@@ -153,15 +225,15 @@ export default function DashboardOverview() {
             <div className="relative w-28 h-28 flex items-center justify-center">
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                 <circle cx="50" cy="50" r="40" fill="transparent" stroke="rgba(255,255,255,0.03)" strokeWidth="8" />
-                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#6366f1" strokeWidth="8" strokeDasharray={251} strokeDashoffset={251 - (251 * 66) / 100} strokeLinecap="round" />
+                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#6366f1" strokeWidth="8" strokeDasharray={251} strokeDashoffset={251 - (251 * progressPercent) / 100} strokeLinecap="round" />
               </svg>
               <div className="absolute text-center">
-                <div className="text-2xl font-black">66%</div>
+                <div className="text-2xl font-black">{progressPercent}%</div>
                 <div className="text-[8px] text-gray-400 font-bold uppercase tracking-wider">Mission</div>
               </div>
             </div>
             <button
-              onClick={() => navigate('/dashboard/interview')}
+              onClick={() => navigate(recommendation.path)}
               className="btn bg-white hover:bg-gray-100 text-gray-950 text-xs w-full py-2.5 rounded-xl font-bold mt-4 flex items-center justify-center gap-2"
             >
               <Play className="w-3.5 h-3.5 fill-gray-950" />

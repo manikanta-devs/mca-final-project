@@ -149,7 +149,16 @@ export default function CommunicationCoachPage() {
 
   useEffect(() => {
     setLoading(false)
-  }, [])
+    if (resumeData) {
+      const weak = resumeData.weak_areas || resumeData.coach_report?.weak_areas || []
+      if (weak.length > 0) {
+        const firstWeak = typeof weak[0] === 'string' ? weak[0] : (weak[0]?.name || weak[0]?.area || '')
+        if (firstWeak) setRoadmapTopic(firstWeak)
+      } else {
+        setRoadmapTopic("CS Fundamentals")
+      }
+    }
+  }, [resumeData])
 
   // Web Speech API Initialization
   useEffect(() => {
@@ -771,6 +780,24 @@ export default function CommunicationCoachPage() {
                                   )
                                 })}
                               </div>
+                            </div>
+
+                            {/* Practice Integrations workflow bridge */}
+                            <div className="flex flex-col sm:flex-row gap-3 pt-3 border-t border-gray-100 dark:border-gray-800/80">
+                              <button
+                                onClick={() => navigate('/dashboard/quiz', { state: { topic: phase.title, difficulty: phase.difficulty } })}
+                                className="flex-1 py-2.5 bg-gradient-to-r from-orange-600/10 to-amber-600/10 hover:from-orange-600/20 hover:to-amber-600/20 border border-orange-500/20 hover:border-orange-500/35 text-orange-400 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5"
+                              >
+                                <Brain className="w-3.5 h-3.5" />
+                                <span>Practice Topic Quiz</span>
+                              </button>
+                              <button
+                                onClick={() => navigate('/dashboard/interview', { state: { job_role: roadmap.target_role || "Software Engineer", skill_focus: [phase.title] } })}
+                                className="flex-1 py-2.5 bg-gradient-to-r from-emerald-600/10 to-teal-600/10 hover:from-emerald-600/20 hover:to-teal-600/20 border border-emerald-500/20 hover:border-emerald-500/35 text-emerald-400 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5"
+                              >
+                                <Sparkles className="w-3.5 h-3.5" />
+                                <span>Mock Interview Drill</span>
+                              </button>
                             </div>
                           </motion.div>
                         )}

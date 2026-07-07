@@ -15,14 +15,16 @@ import toast from 'react-hot-toast'
 import {
   getAnalyticsSummary, getAnalyticsSessions, getPerformanceTrend,
   getWeakAreas, getSkillBreakdown, getStudyPlan, clearAnalytics,
-  injectMockSession
+  injectMockSession, getQuizSessions
 } from '../api/client'
 import LoadingSpinner from '../components/LoadingSpinner'
 import AdvancedToolPanel from '../components/AdvancedToolPanel'
+import { useApp } from '../context/AppContext'
 import { clsx } from 'clsx'
 
 export default function AnalyticsPage() {
   const navigate = useNavigate()
+  const { resumeData } = useApp()
   const [loading, setLoading] = useState(true)
   const [summary, setSummary] = useState(null)
   const [sessions, setSessions] = useState([])
@@ -30,17 +32,19 @@ export default function AnalyticsPage() {
   const [weakAreas, setWeakAreas] = useState([])
   const [skillBreakdown, setSkillBreakdown] = useState([])
   const [studyPlan, setStudyPlan] = useState(null)
+  const [quizSessions, setQuizSessions] = useState([])
 
   const loadData = async () => {
     setLoading(true)
     try {
-      const [sumRes, sessRes, trendRes, weakRes, skillRes, planRes] = await Promise.allSettled([
+      const [sumRes, sessRes, trendRes, weakRes, skillRes, planRes, quizRes] = await Promise.allSettled([
         getAnalyticsSummary(),
         getAnalyticsSessions(10),
         getPerformanceTrend(),
         getWeakAreas(),
         getSkillBreakdown(),
         getStudyPlan(),
+        getQuizSessions()
       ])
       if (sumRes.status === 'fulfilled')   setSummary(sumRes.value.data.summary)
       if (sessRes.status === 'fulfilled')  setSessions(sessRes.value.data.sessions)
@@ -48,6 +52,7 @@ export default function AnalyticsPage() {
       if (weakRes.status === 'fulfilled')  setWeakAreas(weakRes.value.data.weak_areas)
       if (skillRes.status === 'fulfilled') setSkillBreakdown(skillRes.value.data.breakdown)
       if (planRes.status === 'fulfilled') setStudyPlan(planRes.value.data.study_plan)
+      if (quizRes.status === 'fulfilled')  setQuizSessions(quizRes.value.data.sessions || [])
     } catch (err) {
       toast.error('Failed to load analytics')
     } finally {
@@ -115,6 +120,45 @@ export default function AnalyticsPage() {
     { subject: 'OS & CN', score: 60 }
   ]
 
+  // Calculate Quiz Statistics
+  const quizCount = quizSessions.length
+  const avgQuizScore = quizCount > 0
+    ? Math.round(quizSessions.reduce((acc, s) => acc + (s.score || 0), 0) / quizCount)
+    : 78
+
+  // Quiz trend line mapping
+  const quizTrendData = quizSessions.length > 0 
+    ? [...quizSessions].reverse().map((s, idx) => s.score || 0)
+    : [60, 70, 75, 80, 85, 90]
+
+  // Merge trends for LineChart
+  const combinedTrend = activeTrend.map((t, idx) => ({
+    ...t,
+    quiz: quizTrendData[idx] !== undefined ? quizTrendData[idx] : quizTrendData[quizTrendData.length - 1]
+  }))
+
+  // Dynamic AI recommendation task
+  let aiRecommendationText = "Start by uploading your resume to customize your study path and mock sessions."
+  if (resumeData) {
+    const weak = resumeData.weak_areas || resumeData.coach_report?.weak_areas || []
+    if (weak.length > 0) {
+      const topicName = typeof weak[0] === 'string' ? weak[0] : (weak[0]?.name || weak[0]?.area || 'CS Fundamentals')
+      aiRecommendationText = `Based on your resume audit, prioritize study drills on **${topicName}**. Complete 1 topic quiz followed by a mock interview focusing on this area.`
+    } else {
+      aiRecommendationText = "Great resume profile! Test your readiness with a Google or Amazon Mock Interview Simulator."
+    }
+  } else if (hasData) {
+    const techScore = activeSummary.avg_technical || 0
+    const clarityScore = activeSummary.avg_clarity || 0
+    if (clarityScore < techScore) {
+      aiRecommendationText = "Your technical metrics are solid, but verbal pacing is currently a bottleneck. Practice a STAR behavioral mock interview in the speaking sandbox."
+    } else {
+      aiRecommendationText = "Your communication delivery is highly structured! Focus on strengthening technical data structures by taking a practice quiz."
+    }
+  } else {
+    aiRecommendationText = "Start with **3 code debugging tasks** (focusing on system design/SQL latency queries) followed by **1 Mock Interview** in System Design. Est. prep time: 26 Minutes."
+  }
+
   return (
     <motion.div className="space-y-6 select-none" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
       <AdvancedToolPanel type="analytics" />
@@ -137,13 +181,14 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Overview Stat Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         {[
           { label: 'Overall Readiness', value: activeSummary.avg_overall, suffix: '%', color: 'text-violet-500', icon: Target },
           { label: 'Technical Score', value: activeSummary.avg_technical, suffix: '%', color: 'text-orange-500', icon: Settings },
           { label: 'Clarity & Speaking', value: activeSummary.avg_clarity, suffix: '%', color: 'text-emerald-500', icon: Mic },
           { label: 'Confidence Score', value: activeSummary.avg_completeness, suffix: '%', color: 'text-cyan-500', icon: Award },
-          { label: 'Hiring Rate growth', value: activeSummary.improvement_rate, suffix: '%', color: 'text-blue-500', icon: TrendingUp }
+          { label: 'Quizzes Taken', value: quizCount, suffix: '', color: 'text-rose-500', icon: Brain },
+          { label: 'Quiz Accuracy', value: avgQuizScore, suffix: '%', color: 'text-yellow-500', icon: Trophy }
         ].map(({ label, value, suffix, color, icon: Icon }) => (
           <div key={label} className="card text-center hover-lift flex flex-col justify-center items-center">
             <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-white/5 flex items-center justify-center mb-2">
@@ -162,7 +207,7 @@ export default function AnalyticsPage() {
           <h3 className="font-extrabold text-gray-900 dark:text-white text-sm">Growth Timeline (Last 30 Days)</h3>
           <div className="h-60 w-full text-xs">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={activeTrend}>
+              <LineChart data={combinedTrend}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
                 <XAxis dataKey="name" stroke="#64748b" />
                 <YAxis stroke="#64748b" />
@@ -171,6 +216,7 @@ export default function AnalyticsPage() {
                 <Line type="monotone" dataKey="overall" name="Overall" stroke="#6366f1" strokeWidth={2.5} activeDot={{ r: 6 }} />
                 <Line type="monotone" dataKey="technical" name="Technical" stroke="#f97316" strokeWidth={2} />
                 <Line type="monotone" dataKey="communication" name="Communication" stroke="#22c55e" strokeWidth={2} />
+                <Line type="monotone" dataKey="quiz" name="Quiz Accuracy" stroke="#eab308" strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -245,8 +291,7 @@ export default function AnalyticsPage() {
             {/* AI Recommendation */}
             <div className="p-3.5 rounded-2xl bg-violet-600/5 border border-violet-500/20 space-y-1.5 text-xs">
               <span className="text-[10px] font-bold text-violet-400 uppercase tracking-wider block">AI recommendation study task</span>
-              <p className="text-gray-600 dark:text-gray-300 font-medium leading-relaxed">
-                Start with **3 code debugging tasks** (focusing on system design/SQL latency queries) followed by **1 Mock Interview** in System Design. Est. prep time: 26 Minutes.
+              <p className="text-gray-600 dark:text-gray-300 font-medium leading-relaxed" dangerouslySetInnerHTML={{ __html: aiRecommendationText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }}>
               </p>
             </div>
           </div>

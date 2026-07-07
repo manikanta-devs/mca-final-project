@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
+import { useLocation } from 'react-router-dom'
 import {
   CheckCircle, Clock, Lightbulb, Play, RotateCcw, Target,
   Brain, AlertTriangle, Flame, Map, BookOpen, ChevronRight,
@@ -56,6 +57,7 @@ const DEBUG_LANGUAGES = [
 ]
 
 export default function QuizPage() {
+  const location = useLocation()
   const [loading, setLoading] = useState(true)
   const [starting, setStarting] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -92,6 +94,43 @@ export default function QuizPage() {
   }
 
   useEffect(() => { loadData() }, [])
+
+  // Auto-trigger setup from location link state
+  useEffect(() => {
+    if (location.state) {
+      const { topic, difficulty, company } = location.state
+      if (topic) {
+        const cleanTopic = topic.toLowerCase()
+        const isTechnical = TECHNICAL_TOPICS.some(t => t.name.toLowerCase() === cleanTopic || t.id === cleanTopic)
+        const isAptitude = APTITUDE_DOMAINS.some(t => t.name.toLowerCase() === cleanTopic || t.id === cleanTopic)
+        const isDebugging = DEBUG_LANGUAGES.some(t => t.name.toLowerCase() === cleanTopic || t.id === cleanTopic)
+        
+        if (isTechnical) {
+          const matched = TECHNICAL_TOPICS.find(t => t.name.toLowerCase() === cleanTopic || t.id === cleanTopic)
+          setSelectedTopic(matched?.id || 'python')
+          setSelectedDifficulty(difficulty?.toLowerCase() || 'medium')
+          setSetupModal('technical')
+        } else if (isAptitude) {
+          const matched = APTITUDE_DOMAINS.find(t => t.name.toLowerCase() === cleanTopic || t.id === cleanTopic)
+          setSelectedTopic(matched?.id || 'quant')
+          setSelectedDifficulty(difficulty?.toLowerCase() || 'medium')
+          setSetupModal('aptitude')
+        } else if (isDebugging) {
+          const matched = DEBUG_LANGUAGES.find(t => t.name.toLowerCase() === cleanTopic || t.id === cleanTopic)
+          setSelectedTopic(matched?.id || 'python')
+          setSelectedDifficulty(difficulty?.toLowerCase() || 'medium')
+          setSetupModal('debugging')
+        } else {
+          setSelectedTopic('python')
+          setSelectedDifficulty('medium')
+          setSetupModal('technical')
+        }
+      } else if (company) {
+        setSelectedCompany(company.toLowerCase())
+        setSetupModal('company')
+      }
+    }
+  }, [location.state])
 
   // Timer effect
   useEffect(() => {
@@ -263,13 +302,13 @@ export default function QuizPage() {
       {/* Arena Hub Cards (Shown when no quiz is active) */}
       {!sessionId && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Card 1: Technical Mastery */}
+          {/* Card 1: Technical Knowledge */}
           <div className="card border border-gray-150 hover:border-violet-500/30 transition-all hover:shadow-lg flex flex-col justify-between p-5 space-y-4">
             <div className="space-y-2">
               <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-600 dark:text-violet-400">
                 <Code className="w-5 h-5" />
               </div>
-              <h4 className="font-extrabold text-sm text-gray-900 dark:text-white">🖥 Technical Mastery</h4>
+              <h4 className="font-extrabold text-sm text-gray-900 dark:text-white">🖥 Technical Knowledge</h4>
               <p className="text-xs text-gray-500 leading-relaxed font-normal">
                 Coding and core CS preparations. Covers Programming Languages, SQL, DBMS, OS, OOP, and REST API structures.
               </p>
@@ -284,13 +323,13 @@ export default function QuizPage() {
             </button>
           </div>
 
-          {/* Card 2: Aptitude & Reasoning Arena */}
+          {/* Card 2: Aptitude & Reasoning */}
           <div className="card border border-gray-150 hover:border-violet-500/30 transition-all hover:shadow-lg flex flex-col justify-between p-5 space-y-4">
             <div className="space-y-2">
               <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
                 <Brain className="w-5 h-5" />
               </div>
-              <h4 className="font-extrabold text-sm text-gray-900 dark:text-white">🧠 Aptitude & Reasoning Arena</h4>
+              <h4 className="font-extrabold text-sm text-gray-900 dark:text-white">🧠 Aptitude & Reasoning</h4>
               <p className="text-xs text-gray-500 leading-relaxed font-normal">
                 Online Assessment drills. Quantitative aptitude, blood relations, seating arrangements, coding-decoding, and verbal correction.
               </p>
@@ -302,12 +341,12 @@ export default function QuizPage() {
               }}
               className="btn-ghost w-full justify-between text-xs"
             >
-              <span>Start Assessment</span>
+              <span>Configure & Start</span>
               <ChevronRight className="w-4 h-4 text-emerald-500" />
             </button>
           </div>
 
-          {/* Card 3: Debugging & Coding Challenges */}
+          {/* Card 3: Debugging Challenges */}
           <div className="card border border-gray-150 hover:border-violet-500/30 transition-all hover:shadow-lg flex flex-col justify-between p-5 space-y-4">
             <div className="space-y-2">
               <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-600 dark:text-rose-400">
@@ -325,18 +364,18 @@ export default function QuizPage() {
               }}
               className="btn-ghost w-full justify-between text-xs"
             >
-              <span>Start Debugging</span>
+              <span>Configure & Start</span>
               <ChevronRight className="w-4 h-4 text-rose-500" />
             </button>
           </div>
 
-          {/* Card 4: Company Simulator */}
+          {/* Card 4: Company Assessment */}
           <div className="card border border-gray-150 hover:border-violet-500/30 transition-all hover:shadow-lg flex flex-col justify-between p-5 space-y-4">
             <div className="space-y-2">
               <div className="w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-600 dark:text-cyan-400">
                 <Target className="w-5 h-5" />
               </div>
-              <h4 className="font-extrabold text-sm text-gray-900 dark:text-white">🏢 Company Assessment Simulator</h4>
+              <h4 className="font-extrabold text-sm text-gray-900 dark:text-white">🏢 Company Assessment</h4>
               <p className="text-xs text-gray-500 leading-relaxed font-normal">
                 Simulate targeted interview filters. Select Google, Amazon, Microsoft, TCS, Infosys, or Deloitte formats.
               </p>
@@ -348,7 +387,7 @@ export default function QuizPage() {
               }}
               className="btn-ghost w-full justify-between text-xs"
             >
-              <span>Choose Company</span>
+              <span>Configure & Start</span>
               <ChevronRight className="w-4 h-4 text-cyan-500" />
             </button>
           </div>
@@ -498,9 +537,19 @@ export default function QuizPage() {
             {/* Header info */}
             <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-800 pb-3">
               <div>
-                <span className="text-[10px] font-bold text-violet-400 uppercase tracking-widest block capitalize">
-                  {quizType} Drill • {activeCompany !== 'General' ? activeCompany : selectedTopic.replace('_', ' ')}
-                </span>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="text-[10px] font-bold text-violet-400 uppercase tracking-widest block capitalize">
+                    {quizType} Drill • {activeCompany !== 'General' ? activeCompany : selectedTopic.replace('_', ' ')}
+                  </span>
+                  <span className={clsx(
+                    "px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider",
+                    questions[currentIndex]?.difficulty === 'easy' && "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
+                    questions[currentIndex]?.difficulty === 'medium' && "bg-violet-500/10 text-violet-400 border border-violet-500/20",
+                    questions[currentIndex]?.difficulty === 'hard' && "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                  )}>
+                    {questions[currentIndex]?.difficulty || 'medium'}
+                  </span>
+                </div>
                 <span className="text-xs font-extrabold text-gray-900 dark:text-white">Question {currentIndex + 1} of {questions.length}</span>
               </div>
               {timeRemaining !== null && (
