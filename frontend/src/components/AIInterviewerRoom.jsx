@@ -819,7 +819,9 @@ export default function AIInterviewerRoom({
                     </div>
                   )}
               </div>
-            </div>
+            )}
+          </div>
+        </div>
 
                       {/* ━━━ AI LIVE BEHAVIORAL ANALYSIS PANEL ━━━ */}
           <div className="w-full lg:w-72 bg-slate-900/85 border border-white/[0.08] rounded-3xl p-5 flex flex-col gap-4 shadow-2xl backdrop-blur-md shrink-0">
