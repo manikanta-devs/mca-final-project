@@ -1350,6 +1350,12 @@ export default function InterviewPage() {
     handleSubmitAnswerRef.current = handleSubmitAnswer
   })
 
+  // Track zoomPhase in a ref so the interval can read it without re-creating
+  const zoomPhaseRef = useRef(zoomPhase)
+  useEffect(() => {
+    zoomPhaseRef.current = zoomPhase
+  }, [zoomPhase])
+
   useEffect(() => {
     if (phase !== 'interviewing' || !isListening) {
       return
@@ -1371,9 +1377,15 @@ export default function InterviewPage() {
         lastSpeechTimeRef.current = Date.now()
         setEncouragementText('')
       } else if (transcript.length > 3) {
-        // Candidate has started speaking! Auto-submit after 2.5 seconds of silence
+        // NEVER auto-submit during onboarding phases (greet, small_talk, identity_confirm)
+        // The candidate needs unlimited time to introduce themselves
+        if (zoomPhaseRef.current) {
+          return
+        }
+        // During actual interview questions, auto-submit after 5s of silence
+        // (increased from 2.5s to give candidates more thinking time)
         const timeSinceLastSpeech = Date.now() - lastSpeechTimeRef.current
-        const threshold = 2500
+        const threshold = 5000
         if (timeSinceLastSpeech > threshold) {
           console.log(`Candidate finished speaking. Silence threshold of ${threshold}ms reached. Automatically submitting.`);
           lastTranscriptLengthRef.current = 0
