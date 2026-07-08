@@ -89,7 +89,8 @@ export default function AIInterviewerRoom({
   showTypingFallback = false,
   onShowTypingFallbackChange,
   answer = '',
-  onAnswerChange
+  onAnswerChange,
+  isEvaluating = false
 }) {
   const [localCameraEnabled, setLocalCameraEnabled] = useState(true)
   const [localMicEnabled, setLocalMicEnabled] = useState(true)
@@ -517,6 +518,39 @@ export default function AIInterviewerRoom({
 
       <AmbientParticles />
 
+      {/* ━━━ EVALUATING OVERLAY ━━━ */}
+      {isEvaluating && (
+        <div className="absolute inset-0 z-[60] flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-5">
+            {/* Pulsing ring */}
+            <div className="relative w-20 h-20">
+              <div className="absolute inset-0 rounded-full border-4 border-cyan-500/30 animate-ping" />
+              <div className="absolute inset-2 rounded-full border-4 border-cyan-400/60 animate-pulse" />
+              <div className="absolute inset-4 rounded-full bg-gradient-to-br from-cyan-500 to-indigo-500 flex items-center justify-center shadow-lg shadow-cyan-500/40">
+                <svg className="w-6 h-6 text-white animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+              </div>
+            </div>
+            <div className="text-center">
+              <p className="text-white font-bold text-lg tracking-tight">Analyzing your answer...</p>
+              <p className="text-gray-400 text-sm mt-1">Sarah is reviewing your response</p>
+            </div>
+            {/* Animated dots */}
+            <div className="flex gap-1.5">
+              {[0, 1, 2].map(i => (
+                <div
+                  key={i}
+                  className="w-2 h-2 rounded-full bg-cyan-400"
+                  style={{ animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite` }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ━━━ TOP HEADER BAR ━━━ */}
       <div className="h-14 border-b border-white/5 bg-slate-950/85 px-5 flex items-center justify-between z-20 relative backdrop-blur-md">
         <div className="flex items-center gap-3">
@@ -691,17 +725,23 @@ export default function AIInterviewerRoom({
               </div>
             </div>
 
-            {/* Live User Transcript Overlay */}
-            {(voiceTranscript || voiceInterim) && (
+            {/* Live User Transcript Overlay — only show while actively capturing, hide during evaluation */}
+            {!isEvaluating && (voiceTranscript || voiceInterim) && (
               <div className="absolute bottom-16 left-4 right-4 z-20 rounded-xl bg-black/75 border border-white/10 backdrop-blur-md p-3 text-left shadow-lg animate-in fade-in duration-200">
                 <span className="text-[8px] font-black uppercase text-cyan-400 tracking-wider flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" /> Live Speech Capture
                 </span>
-                <p className="text-[10px] text-white/95 leading-relaxed mt-1 font-semibold">
-                  {voiceTranscript} <span className="text-cyan-300 italic">{voiceInterim}</span>
+                <p className="text-[10px] text-white/95 leading-relaxed mt-1 font-semibold line-clamp-3">
+                  {/* Show only the most recent part of the transcript — cap to last 200 chars */}
+                  {voiceTranscript?.length > 200
+                    ? '...' + voiceTranscript.slice(-200)
+                    : voiceTranscript
+                  }{' '}
+                  <span className="text-cyan-300 italic">{voiceInterim}</span>
                 </p>
               </div>
             )}
+
 
             {/* Video overlay controls */}
             <div className="absolute bottom-4 left-4 z-20 flex items-center gap-2">

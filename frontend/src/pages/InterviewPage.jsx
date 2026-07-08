@@ -632,7 +632,10 @@ export default function InterviewPage() {
   const [zoomPhase, setZoomPhase] = useState(null)
   
   useEffect(() => {
-    if (phase === 'interviewing') {
+    // Keep fullscreen during ALL active interview phases — not just 'interviewing'
+    // Without this, the sidebar re-appears every time phase switches to 'evaluating'
+    const isActivePhase = phase === PHASE.INTERVIEWING || phase === PHASE.EVALUATING
+    if (isActivePhase) {
       document.body.classList.add('interview-active')
     } else {
       document.body.classList.remove('interview-active')
@@ -2916,7 +2919,13 @@ export default function InterviewPage() {
   }
 
 
-  if (phase === PHASE.INTERVIEWING && (interviewFormat === 'video' || interviewFormat === 'voice')) {
+  // Render the full-screen interview room for BOTH interviewing and evaluating phases.
+  // Previously only rendered for 'interviewing' — so during evaluation the room
+  // would unmount, the sidebar would pop back in, and the layout would shrink.
+  if (
+    (phase === PHASE.INTERVIEWING || phase === PHASE.EVALUATING) &&
+    (interviewFormat === 'video' || interviewFormat === 'voice')
+  ) {
     return (
       <AIInterviewerRoom
         cameraPreviewRef={cameraPreviewRef}
@@ -2959,6 +2968,7 @@ export default function InterviewPage() {
         onShowTypingFallbackChange={setShowTypingFallback}
         answer={answer}
         onAnswerChange={setAnswer}
+        isEvaluating={phase === PHASE.EVALUATING}
       />
     )
   }
