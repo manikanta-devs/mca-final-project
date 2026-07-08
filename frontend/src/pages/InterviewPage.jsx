@@ -1398,7 +1398,7 @@ export default function InterviewPage() {
     setIsListening(false)
     const recognition = recognitionRef.current
 
-    if (recognition && stopCamera) {
+    if (recognition) {
       recognition.onresult = null
       recognition.onerror = null
       recognition.onend = null
@@ -1672,6 +1672,12 @@ export default function InterviewPage() {
         stream = await Promise.race([mediaPromise, timeoutPromise])
         mediaStreamRef.current = stream
         setActiveMediaStream(stream)
+      }
+
+      // If the AI is currently speaking, mute the microphone tracks immediately
+      // to prevent picking up the speaker sound during startup latency
+      if (isInterviewerSpeakingRef.current) {
+        stream.getAudioTracks().forEach(t => { t.enabled = false })
       }
 
       // Enumerate devices once permission is granted

@@ -117,6 +117,10 @@ class GeminiProvider(BaseAIProvider):
                 except Exception as ex:
                     logger.warning(f"Model {model_name} failed on provider {self.provider_id}: {ex}")
                     last_err = ex
+                    err_msg = str(ex).lower()
+                    if "429" in err_msg or "quota" in err_msg or "blocked" in err_msg:
+                        logger.warning(f"GeminiProvider ({self.provider_id}) hit rate limit/quota. Aborting model loop to prevent lag.")
+                        break
             
             if last_err:
                 raise last_err
