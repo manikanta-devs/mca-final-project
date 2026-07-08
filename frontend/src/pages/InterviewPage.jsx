@@ -757,6 +757,7 @@ export default function InterviewPage() {
   const emotionHistoryRef = useRef([])
   const isStartingCaptureRef = useRef(false)
   const isSubmittingRef = useRef(false)
+  const lastInterviewerSpeechEndTimeRef = useRef(0)
 
 
 
@@ -1061,6 +1062,7 @@ export default function InterviewPage() {
     const handleSpeechEnd = () => {
       if (fallbackTimeout) clearTimeout(fallbackTimeout)
       setIsInterviewerSpeaking(false)
+      lastInterviewerSpeechEndTimeRef.current = Date.now()
       // Re-enable mic track and give 600ms for echo to clear before listening again
       setTimeout(() => {
         if (mediaStreamRef.current && micEnabled) {
@@ -1105,6 +1107,7 @@ export default function InterviewPage() {
       if (fallbackTimeout) clearTimeout(fallbackTimeout)
       synth.cancel()
       setIsInterviewerSpeaking(false)
+      lastInterviewerSpeechEndTimeRef.current = Date.now()
     }
   }, [phase, currentIndex, currentQuestion?.text, interviewerVoice, panelMode, activePanelMember?.id, interviewerPersona, browserVoices, zoomPhase, interviewFormat, onboardingQuestionText])
 
@@ -1422,15 +1425,11 @@ export default function InterviewPage() {
         lastSpeechTimeRef.current = Date.now()
         setEncouragementText('')
       } else if (transcript.length > 3) {
-        // NEVER auto-submit during onboarding phases (greet, small_talk, identity_confirm)
-        // The candidate needs unlimited time to introduce themselves
-        if (zoomPhaseRef.current) {
-          return
-        }
-        // During actual interview questions, auto-submit after 5s of silence
-        // (increased from 2.5s to give candidates more thinking time)
+        // Automatically submit onboarding responses after 3.5s of silence
+        // Automatically submit interview questions after 5.0s of silence
+        const isOnboarding = !!zoomPhaseRef.current
+        const threshold = isOnboarding ? 3500 : 5000
         const timeSinceLastSpeech = Date.now() - lastSpeechTimeRef.current
-        const threshold = 5000
         if (timeSinceLastSpeech > threshold) {
           console.log(`Candidate finished speaking. Silence threshold of ${threshold}ms reached. Automatically submitting.`);
           lastTranscriptLengthRef.current = 0
@@ -1889,6 +1888,10 @@ export default function InterviewPage() {
 
       recognition.onresult = event => {
         if (!isListeningRef.current || isInterviewerSpeakingRef.current) {
+          return
+        }
+        // Discard any echo or delayed speech recognition events within 1.2 seconds of AI stopping speech
+        if (Date.now() - lastInterviewerSpeechEndTimeRef.current < 1200) {
           return
         }
 
