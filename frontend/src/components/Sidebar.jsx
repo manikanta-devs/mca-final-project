@@ -12,9 +12,9 @@ import AppLogo from './AppLogo'
 
 const NAV_ITEMS = [
   { to: '/dashboard',           icon: Home,      label: 'Dashboard',       badge: null },
-  { to: '/dashboard/coach',     icon: Mic,       label: 'Coach',           badge: 'New' },
   { to: '/dashboard/resume',    icon: FileText,  label: 'Resume Analysis', badge: null },
   { to: '/dashboard/interview', icon: Sparkles,  label: 'Interview',       badge: null },
+  { to: '/dashboard/coach',     icon: Mic,       label: 'Coach',           badge: 'New' },
   { to: '/dashboard/quiz',      icon: Brain,     label: 'Quiz Practice',   badge: 'New' },
   { to: '/dashboard/analytics', icon: BarChart2, label: 'Analytics',       badge: null },
 ]

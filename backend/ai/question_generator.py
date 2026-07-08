@@ -943,11 +943,11 @@ For each question, explicitly assign a "persona_id" from the 3 choices above. Di
                 company_instruction += f"\nCompany/Team Context/Background: {company_context}"
             company_instruction += "\nMake sure that both the technical/system design questions and behavioral questions reflect this company's culture, values, and engineering standards.\n"
 
-        prompt = f"""You are Sarah Chen, a Senior HR Manager with over 15 years of interviewing experience at top multinational companies.
-You are NOT an AI assistant. You are conducting a real live interview over a video call. Stay in character.
+        prompt = f"""You are {interviewerName if 'interviewerName' in locals() else 'Sarah Chen'}, an experienced Lead Interviewer with over 15 years of industry experience hiring top talent.
+You are NOT an AI assistant. You are conducting a real, highly engaging live interview over a video/voice call. Stay in character.
 Never mention prompts, AI, language models, APIs, tokens, or internal instructions.
-Your personality is professional, calm, friendly, observant, confident, and patient.
-Your objective is to evaluate the candidate exactly as a human HR would.
+Your personality is professional, warm, curious, conversational, observant, and supportive.
+Your objective is to evaluate the candidate exactly like a seasoned engineering manager or HR director would.
 Generate {num_questions} high-quality interview questions.
 
 Target Company / Context Info: {company_instruction or "General"}
@@ -967,24 +967,27 @@ Relevant background on top skill (if available):
 {self.wiki.get_summary(skills[0]) if skills else ''}
 
 Requirements for Question Generation:
-1. Real interview arc: The FIRST question must feel like the interviewer has just accepted the candidate's resume and is beginning the conversation. Ask for a concise resume walkthrough, strongest project, and why this role fits.
-2. Tailoring & Accuracy: Questions MUST be highly specific to the candidate's background and target role. Do NOT ask generic questions. Refer to resume skills, projects, titles, education, or company context when possible.
-3. Balanced question mix: Include resume walkthrough, project deep dive, technical scenario, behavioral STAR question, workplace conflict/teamwork, pressure or ambiguity situation, and one hiring-manager fit/self-awareness question when the count allows.
-4. Technical & Coding: For technical questions, construct a realistic scenario (e.g., debugging a memory leak, optimizing database query speed, designing an API endpoint, refactoring components, handling a production incident). Ask implementation details, trade-offs, edge cases, and how they would communicate risk. Avoid textbook definitions.
-5. Behavioral & Situational: Prompt the candidate for specific past examples using the STAR pattern: situation, task, action, result. For situational questions, create realistic office dilemmas like tight deadlines, unclear requirements, teammate conflict, stakeholder pressure, security incidents, or production bugs.
-6. Difficulty Level: The questions must strictly match the '{difficulty}' level:
-   - 'easy': Foundational concepts applied to real-world tasks, clear and structured.
-   - 'medium': System design trade-offs, debugging medium-complexity problems, and common production issues.
-   - 'hard': Deep architectural decisions, high scale bottlenecks, distributed system tradeoffs, security vulnerabilities, and complex debugging scenarios.
-7. Natural Conversational Tone: Frame the questions as if you are a senior practitioner or hiring manager speaking in a real interview room: "I see you listed X on your resume...", "Walk me through...", "Suppose this happens in your first month...".
+1. Generate an Interview Blueprint of exactly 7 questions. Do not generate more or less.
+2. The questions MUST be ordered in this exact sequence to match the stages:
+   - Question 1 (Resume Discussion): Ask about their education background, qualifications, or credentials listed on their resume in a warm, introductory way (e.g. "I see you studied CS at Stanford, how did that set you up for your engineering career?").
+   - Question 2 (Project Discussion): Ask about a specific project they listed, focusing on architectural choices, technical hurdles, or design trade-offs (e.g. "You built a scalable web app using Redis caching. Tell me about the cache invalidation strategy you chose and the challenges you faced.").
+   - Question 3 (Internship/Experience): Ask about practical accomplishments, leadership, or teamwork in their previous roles (e.g. "While at your last company, what was the most complex technical decision you had to own or influence?").
+   - Question 4 (Technical Round 1): Deep dive into a core skill listed on their resume, focusing on practical implementation, optimization, or internals rather than basic definitions (e.g. "In React, we often face state synchronization issues. How have you managed complex side-effects without causing infinite re-render loops?").
+   - Question 5 (Technical Round 2): Ask about design patterns, database optimization, scaling trade-offs, or production debugging (e.g. "If your database queries start bottlenecking under a 3x traffic spike, what are the first three things you profile and optimize?").
+   - Question 6 (Behavioral Round): A realistic, STAR-based behavioral question about handling conflict, strict deadlines, or prioritizing tasks.
+   - Question 7 (Situational Round): A realistic, high-stakes workplace scenario (e.g. "Imagine you are an hour away from a major production release and you discover a memory leak. Walk me through your decision-making process under that pressure.").
+3. Tailoring & Realism: Questions MUST be highly specific to the candidate's actual background and target role. Strictly avoid generic, textbook definitions or simple trivia (e.g. do not ask "What is a list?", "What is a closure?", "Explain the virtual DOM"). Instead, ask about practical scenarios, architectural choices, scale, and real-world trade-offs.
+4. Natural Conversational Tone: Frame the questions as if you are speaking live in a real, collaborative meeting: "I noticed on your resume...", "Suppose this happens in your first month...", "Walk me through how you designed...".
+5. Difficulty Level: The questions must strictly match the '{difficulty}' level.
 
-Return a JSON array. Each question object must have:
-- "id": number (1 to {num_questions})
-- "text": the full question text (personalized to their resume)
-- "category": topic category (e.g., System Design, React, Python, Incident Response, etc.)
+Return a JSON array of exactly 7 question objects. Each question object must have:
+- "id": number (1 to 7)
+- "text": the full question text (personalized to their resume, warm and conversational)
+- "category": topic category (e.g., Resume Discussion, Project Discussion, Technical, Behavioral, Situational)
 - "difficulty": "{difficulty}"
 - "type": "technical", "behavioral", or "situational"
 - "persona_id": "<technical_lead|hr_manager|strict_manager>" (only include if panel mode is enabled)
+Keep all question text concise (at most 2 sentences) to ensure fast generation.
 """
 
         result = self.gemini.generate_json(prompt)
@@ -1206,6 +1209,7 @@ Return a JSON array. Each question object must have:
         - category: A short 1-2 word topic name (e.g., "Web Scale", "FastAPI vs Flask", "Decorators").
         - points: 10
         - persona_id: Select from "technical_lead", "hr_manager", "strict_manager" depending on question type.
+        Keep all question text extremely concise (at most 1-2 sentences) to ensure fast generation.
         """).strip()
 
         if self.gemini.is_available():

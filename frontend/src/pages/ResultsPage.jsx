@@ -232,10 +232,8 @@ export default function ResultsPage() {
               Verdict: {verdict}
             </span>
           </div>
-        </div>
-
-        {/* Candidate Details Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-semibold text-gray-700 dark:text-gray-300">
+        </div>        {/* Candidate Details Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-xs font-semibold text-gray-700 dark:text-gray-300">
           <div className="space-y-0.5">
             <span className="text-[10px] text-gray-400 font-normal">Candidate</span>
             <div className="text-sm font-black text-gray-900 dark:text-white">{results.candidate_name}</div>
@@ -245,12 +243,18 @@ export default function ResultsPage() {
             <div className="text-sm font-black text-gray-900 dark:text-white capitalize">{results.role?.replace(/_/g, ' ')}</div>
           </div>
           <div className="space-y-0.5">
-            <span className="text-[10px] text-gray-400 font-normal">Interview Duration</span>
-            <div className="text-sm font-black text-gray-900 dark:text-white">{results.duration_minutes} Minutes</div>
+            <span className="text-[10px] text-gray-400 font-normal">Duration</span>
+            <div className="text-sm font-black text-gray-900 dark:text-white">{results.duration_minutes} Mins</div>
           </div>
           <div className="space-y-0.5">
-            <span className="text-[10px] text-gray-400 font-normal">Hiring Recommendation</span>
+            <span className="text-[10px] text-gray-400 font-normal">Hiring Decision</span>
             <div className="text-sm font-black text-violet-500">{hiringRec}</div>
+          </div>
+          <div className="space-y-0.5">
+            <span className="text-[10px] text-gray-400 font-normal">Hiring Probability</span>
+            <div className="text-sm font-black text-emerald-500 dark:text-emerald-400 font-mono">
+              {results.recruiter_report?.hiring_probability || results.scores?.overall || 0}%
+            </div>
           </div>
         </div>
 
@@ -265,12 +269,39 @@ export default function ResultsPage() {
                   <span className="text-gray-900 dark:text-white font-mono">{val}%</span>
                 </div>
                 <div className="w-full h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden flex">
-                  <div className="h-full bg-violet-600" style={{ width: `${val}%` }} />
+                  <div className="h-full bg-violet-650" style={{ width: `${val}%` }} />
                 </div>
               </div>
             ))}
           </div>
         </div>
+
+        {/* Company Compatibility Checklist */}
+        {results.recruiter_report?.company_readiness && (
+          <div className="space-y-4 border-t border-gray-100 dark:border-gray-800/80 pt-5">
+            <h4 className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-amber-500" /> Company Compatibility Scorecard
+            </h4>
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+              {Object.entries(results.recruiter_report.company_readiness).map(([company, score]) => (
+                <div key={company} className="p-3.5 rounded-2xl bg-gray-50 dark:bg-gray-800/40 border border-gray-150 dark:border-gray-850 text-center space-y-1">
+                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{company}</span>
+                  <div className="text-base font-black text-indigo-500 dark:text-indigo-400 font-mono">{score}%</div>
+                  <div className={clsx(
+                    'text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-lg inline-block',
+                    score >= 80 
+                      ? 'bg-emerald-500/10 text-emerald-500' 
+                      : score >= 65 
+                      ? 'bg-indigo-500/10 text-indigo-400' 
+                      : 'bg-gray-500/10 text-gray-450'
+                  )}>
+                    {score >= 80 ? 'Premium Fit' : score >= 65 ? 'Ready' : 'Needs Review'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Strengths & Weaknesses Recruiter Format */}
         <div className="grid md:grid-cols-2 gap-5 border-t border-gray-100 dark:border-gray-800/80 pt-5">

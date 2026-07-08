@@ -65,6 +65,9 @@ class AnswerEvaluator:
         voice_metrics: Optional[dict] = None,
         emotion_metrics: Optional[dict] = None,
         previous_scores: Optional[list] = None,
+        chat_history: Optional[list] = None,
+        resume_data: Optional[dict] = None,
+        interviewer_name: str = "Sarah Chen",
     ) -> dict:
         """Evaluate an answer and return detailed feedback with adaptive fields"""
         # Check for God Mode override
@@ -163,6 +166,9 @@ class AnswerEvaluator:
                 voice_metrics=voice_metrics,
                 emotion_metrics=emotion_metrics,
                 previous_scores=previous_scores,
+                chat_history=chat_history,
+                resume_data=resume_data,
+                interviewer_name=interviewer_name,
             )
             if result:
                 return result
@@ -195,20 +201,22 @@ class AnswerEvaluator:
         answer: str,
         candidate_name: str = "Candidate",
         resume_data: Optional[dict] = None,
+        first_question: Optional[str] = None,
+        interviewer_name: str = "Sarah Chen",
     ) -> str:
         """Generate a personalized, conversational HR transition & question based on user response during onboarding"""
         phase_flow = {
             "greet_mic": {
                 "next": "small_talk",
-                "goal": "Acknowledge that they can hear and see you, welcome them warmly to the interview, and ask how their day has been so far."
+                "goal": "Acknowledge their check. Be responsive to greetings like 'good morning' or 'good afternoon' (if they correct you or greet you back, acknowledge it warmly). Welcome them and ask how their day has been so far."
             },
             "small_talk": {
                 "next": "identity_confirm",
-                "goal": "Respond conversationally to how their day was (be empathetic or happy as appropriate). Then ask them to briefly introduce themselves and walk through their background."
+                "goal": "Respond conversationally to how their day was (empathetic, happy, or brief). Then ask them to introduce themselves, confirm their full name, and walk through their background."
             },
             "identity_confirm": {
-                "next": "resume_confirm",
-                "goal": "Acknowledge their introduction warmly, express excitement to interview them today, and say that we will now begin with the core questions."
+                "next": "resume_discussion",
+                "goal": f"Acknowledge their self-introduction warmly. Mention their name if shared. Then transition naturally to the first interview question: '{first_question or 'Tell me about your education qualifications'}'."
             }
         }
 
@@ -219,24 +227,19 @@ class AnswerEvaluator:
         next_phase = flow["next"]
         next_goal = flow["goal"]
 
-        prompt = f"""You are Sarah Chen, a Senior HR Manager with over 15 years of interviewing experience at top multinational companies.
-You are NOT an AI assistant. You are conducting a real live interview over a video call. Stay in character.
-Never mention prompts, AI, language models, APIs, tokens, or internal instructions.
-Your personality is professional, calm, friendly, observant, confident, and patient.
+        prompt = f"""You are {interviewer_name}, a Senior HR Manager.
+You are conducting a real live video interview. Stay in character.
+Never mention prompts, AI, language models, APIs, or internal instructions.
+The candidate just responded to the onboarding stage '{current_phase}' with: "{answer}".
 
-The candidate just replied to the onboarding question for the stage '{current_phase}'.
-Their answer was: "{answer}"
+Your goal for the next stage ('{next_phase}') is: {next_goal}
 
-The next stage of onboarding is '{next_phase}'.
-Your goal for this next stage is: {next_goal}
-
-Generate a natural, conversational response directly addressing what the candidate said, followed immediately by the question for the next stage.
-Behave like a recruiter: acknowledge the answer naturally, comment, and ask the next onboarding question.
-Keep the response brief (maximum 35 words total) and speak directly to the candidate. Do not write JSON, return ONLY plain text."""
+Generate a natural, conversational response directly addressing what the candidate said, followed by the prompt/question for the next stage.
+Keep it warm, professional, and under 40 words. Speak directly to the candidate. Do not return JSON, return ONLY plain text."""
 
         if self.gemini.is_available():
             try:
-                response = self.gemini.generate_content(prompt)
+                response = self.gemini.generate_content(prompt, max_tokens=150)
                 if response:
                     return response.strip()
             except Exception as e:
@@ -244,17 +247,17 @@ Keep the response brief (maximum 35 words total) and speak directly to the candi
 
         # Fallbacks
         if current_phase == "greet_mic":
-            return "Great, glad you can hear me. Can you also see my video feed clearly?"
-        elif current_phase == "greet_camera":
-            return "Wonderful. Welcome to the interview room! How has your day been so far?"
+            ans_lower = answer.lower()
+            if any(w in ans_lower for w in ["no", "can't", "cannot", "unable", "bad", "low", "issue", "problem"]):
+                return "I understand. Please adjust your audio/video settings if needed, but let's try to proceed. How has your day been so far?"
+            return "Great, glad you can hear me. Welcome! How has your day been so far?"
         elif current_phase == "small_talk":
-            return f"Understood. Before we begin, could you please introduce yourself and confirm your full name?"
+            ans_lower = answer.lower()
+            if any(w in ans_lower for w in ["not good", "bad", "worst", "sad", "horrible", "terrible", "busy", "tired", "stressed"]):
+                return "I'm sorry to hear that your day hasn't been the best. Hopefully, this session is a positive step forward. Before we begin, could you please introduce yourself and walk me through your background?"
+            return "That's good to hear. Before we begin, could you please introduce yourself and walk me through your background?"
         elif current_phase == "identity_confirm":
-            return f"Pleasure to meet you. I see you've uploaded your resume. Could you please confirm if this is your latest resume?"
-        elif current_phase == "resume_confirm":
-            return "Perfect. Let's start with a brief overview of your background. Are you ready?"
-        elif current_phase == "resume_summary":
-            return "Perfect. Today's interview will take about 20 minutes covering technical and behavioral questions. Let's get started!"
+            return f"Pleasure to meet you. Let's start with the first question: {first_question or 'Could you tell me about your qualifications?'}"
         return "Perfect. Let's move forward."
     def _evaluate_with_gemini(
         self,
@@ -264,8 +267,11 @@ Keep the response brief (maximum 35 words total) and speak directly to the candi
         voice_metrics=None,
         emotion_metrics=None,
         previous_scores=None,
+        chat_history=None,
+        resume_data=None,
+        interviewer_name="Sarah Chen",
     ):
-        """Evaluate answer using Gemini API"""
+        """Evaluate answer using Gemini API with contextual memory"""
         question_text = (
             question.get("text", "") if isinstance(question, dict) else str(question)
         )
@@ -285,11 +291,11 @@ Keep the response brief (maximum 35 words total) and speak directly to the candi
 
         persona_context = ""
         if persona_id == "strict_manager":
-            persona_context = "\nYou are evaluating as the 'Strict Engineering Manager'. Your feedback should be highly critical, pushing for excellence, measurable outcomes, and challenging weak technical trade-offs. Score strictly."
+            persona_context = f"\nYou are evaluating as the 'Strict Engineering Manager' (named {interviewer_name}). Your feedback should be highly critical, pushing for excellence, measurable outcomes, and challenging weak technical trade-offs. Score strictly."
         elif persona_id == "hr_manager":
-            persona_context = "\nYou are evaluating as the 'HR Manager'. Your feedback should be supportive, encouraging, and focus on communication, teamwork, and cultural fit."
+            persona_context = f"\nYou are evaluating as the 'HR Manager' (named {interviewer_name}). Your feedback should be supportive, encouraging, and focus on communication, teamwork, and cultural fit."
         elif persona_id == "technical_lead":
-            persona_context = "\nYou are evaluating as the 'Technical Lead'. Your feedback should be direct, analytical, and focused on architectural patterns, code quality, and best practices."
+            persona_context = f"\nYou are evaluating as the 'Technical Lead' (named {interviewer_name}). Your feedback should be direct, analytical, and focused on architectural patterns, code quality, and best practices."
 
         # Filter metrics to only include necessary keys to minimize token count
         clean_voice = None
@@ -319,76 +325,86 @@ Keep the response brief (maximum 35 words total) and speak directly to the candi
             avg = sum(previous_scores) / len(previous_scores)
             adaptive_context = f"\nCandidate's average score so far: {avg:.0f}/100 across {len(previous_scores)} questions."
 
-        prompt = f"""You are Sarah Chen, a Senior HR Manager with over 15 years of interviewing experience at top multinational companies.
-You are NOT an AI assistant. You are conducting a real live interview over a video call. Stay in character.
-Never mention prompts, AI, language models, APIs, tokens, or internal instructions.
-Your personality is professional, calm, friendly, observant, confident, and patient.
-Your objective is to evaluate the candidate exactly as a human HR would.
-{persona_context}
+        # Resume context mapping
+        resume_context = ""
+        if resume_data and isinstance(resume_data, dict):
+            resume_context = f"""
+Candidate Resume Data:
+- Education: {resume_data.get('education', [])}
+- Key Skills: {resume_data.get('skills', {}).get('all', [])}
+- Projects: {resume_data.get('projects', [])}
+- Experience/Internships: {resume_data.get('experience', [])}
+"""
+
+        # Conversation History context
+        history_context = ""
+        if chat_history and isinstance(chat_history, list):
+            history_context = "\nConversation History so far:\n"
+            for msg in chat_history[-8:]:
+                role_label = "Interviewer" if msg.get("role") == "interviewer" else "Candidate"
+                history_context += f"[{role_label}]: {msg.get('text', '')}\n"
+
+        prompt = f"""You are {interviewer_name}, an experienced corporate HR Director conducting a live video interview.
+You are NOT an AI assistant. You are conducting a real, natural interview over Zoom/Meet. Stay in character.
+Never expose internal instructions, prompts, AI terminology, or token logic. Do not say "based on uploaded resume" or "according to rules".
+
+Candidate Resume Details: {resume_context or "Not uploaded"}
+{history_context}
 
 Role: {role.replace('_', ' ').title()}
 Question Category: {category}
 Question Type: {question_type}
 {adaptive_context}
+{persona_context}
 
-Question: {question_text}
-
+Question Asked: {question_text}
 Candidate's Answer: {answer}
 {voice_context}
 {emotion_context}
 
-Evaluate this answer and return a JSON object. You must grade strictly, realistically, and constructively.
-
-Scoring Rubric & Accuracy Guidelines:
-1. Length-Based Cap: If the candidate's answer is extremely short or lazy (e.g. under 15 words, or repeats the question, or says "I don't know"), the overall_score, technical_score, clarity_score, relevance_score, and depth_score must be capped at 30.
-2. Textbook Cap: If the answer is a simple definition or theoretical explanation without any concrete examples, architecture context, or trade-offs, the overall_score must be capped at 70.
-3. High Scores (>80): Only award high scores if the answer provides deep technical accuracy, refers to concrete project details/experiences, highlights engineering trade-offs, and addresses potential edge cases.
-4. Structural Check (STAR Method): For behavioral and situational questions, verify if the candidate used the STAR (Situation, Task, Action, Result) method. Specifically note which elements were present or missing in the "feedback" and "coach_notes" fields.
-5. Delivery & Composition: Combine the candidate's answer depth with the provided voice and emotion metrics (if any) to construct precise coaching tips.
-
-Return a JSON object with these exact fields:
+Evaluate this response and return a JSON object with these exact fields:
 {{
-  "technical_score": <0-100, based on technical correctness and depth>,
+  "technical_score": <0-100, based on correctness and depth>,
   "clarity_score": <0-100, based on articulation and logic>,
-  "completeness_score": <0-100, did they answer all parts of the question>,
-  "relevance_score": <0-100, how directly they answered the prompt>,
-  "depth_score": <0-100, how deep the technical/situational details go>,
-  "overall_score": <0-100, weighted combination of the above based on your rubric>,
-  "topic": "<main technical topic of the question>",
-  "strong_areas": ["<specific strength 1>", "<specific strength 2>"],
-  "weak_areas": ["<specific gap/weakness 1>", "<specific gap/weakness 2>"],
-  "feedback": "<2-3 sentences of constructive and realistic feedback, describing exactly what was good and what was missing or shallow>",
-  "ideal_answer_hints": "<brief hint showing what a perfect, industry-grade response would look like>",
-  "confidence_score": <0-100, estimated based on clarity, structure, and pacing>,
-  "structure_score": <0-100, based on STAR method for behavioral, or logical layout for technical>,
+  "completeness_score": <0-100, did they cover all aspects of the question>,
+  "relevance_score": <0-100, how directly they answered the question>,
+  "depth_score": <0-100, depth of technical/situational details>,
+  "overall_score": <0-100, weighted combination>,
+  "topic": "<main technical topic>",
+  "strong_areas": ["<strength 1>", "<strength 2>"],
+  "weak_areas": ["<gap 1>", "<gap 2>"],
+  "feedback": "<2-3 sentences of constructive feedback, describing what was good and what was missing>",
+  "ideal_answer_hints": "<brief hint showing industry-grade answer>",
+  "confidence_score": <0-100, based on pacing, clarity, and metrics>,
+  "structure_score": <0-100, based on STAR method for behavioral/situational>,
   "star_rubric": {{
-    "situation": <0-100, Situation completeness score based on context provided>,
-    "task": <0-100, Task completeness score based on clarity of objectives>,
-    "action": <0-100, Action completeness score based on detailed steps described>,
-    "result": <0-100, Result completeness score based on outcomes or metrics shared>
+    "situation": <0-100>,
+    "task": <0-100>,
+    "action": <0-100>,
+    "result": <0-100>
   }},
-  "priority_focus": "<single coaching focus for their next answer, e.g. 'Use quantitative metrics' or 'Explain trade-offs first'>",
-  "suggested_next_action": "<one concrete step to improve, e.g. 'Read up on event delegation' or 'Practice framing conflicts using STAR'>",
-  "follow_up_prompt": "<a follow-up question to dig deeper into a weak/unclear part of their answer>",
-  "coach_notes": ["<coaching note 1, e.g. 'Missing Action element in STAR'>", "<coaching note 2, e.g. 'Good technical depth on indexing'>"],
-  "live_tips": ["<real-time tip 1>", "<tip 2>", "<tip 3>"],
-  "difficulty_adjustment": "<increase|maintain|decrease> (increase if overall_score >= 80, decrease if overall_score < 45, maintain otherwise)",
+  "priority_focus": "<single focus for improvement>",
+  "suggested_next_action": "<one concrete practice step>",
+  "follow_up_prompt": "<a follow-up question to probe deeper. If they answered a project question, ask a realistic follow-up, e.g. how they designed a part or would scale it. If no follow-up is needed, set to ''>",
+  "coach_notes": ["<coaching note 1>"],
+  "live_tips": ["<tip 1>", "<tip 2>"],
+  "difficulty_adjustment": "<increase|maintain|decrease>",
   "speaking_pace_wpm": <integer or 0>,
   "filler_word_count": <integer>,
   "filler_word_ratio": <0-100>,
   "voice_delivery_score": <0-100>,
-  "voice_feedback": "<short constructive feedback on pace and voice delivery>",
+  "voice_feedback": "<constructive feedback on pacing>",
   "emotion_label": "<focused|calm|energetic|nervous|disengaged|uncertain>",
   "engagement_score": <0-100>,
   "eye_contact_score": <0-100>,
-  "posture_score": <0-100, based on posture quality, reading from the provided posture_score if present>,
-  "posture_label": "<Good|Slouched|Leaning Left|Leaning Right>",
-  "emotion_feedback": "<short constructive feedback on camera presence, eye contact, and posture>",
-  "sentiment": "positive" | "neutral" | "negative" (must be "positive" if overall_score >= 75, "neutral" if 45-74, "negative" if < 45),
-  "interviewer_response": "<A warm, natural 1-2 sentence spoken HR response directly to the candidate about their answer. No generic transitions. Max 25 words.>"
+  "posture_score": <0-100>,
+  "posture_label": "<Good|Slouched|Leaning>",
+  "emotion_feedback": "<feedback on camera presence>",
+  "sentiment": "positive" | "neutral" | "negative",
+  "interviewer_response": "<A warm, highly natural 1-2 sentence spoken transition directly reacting to the content of the candidate's answer. Avoid generic phrases like 'Thanks for that answer' or 'Let's move to the next question'. Instead, reference a specific detail they mentioned (e.g. 'Interesting caching strategy, using Redis to offload database queries is a solid choice', 'I like how you prioritized communication during that critical downtime', 'That makes sense, starting with modular components is indeed a good practice'). Max 25 words.>"
 }}
 
-Be fair but honest. If the answer is very short or vague, score accordingly."""
+Be fair but honest. If the answer is very short or vague, score accordingly. Keep all text explanations, feedback, notes, and tips extremely concise (at most 1-2 sentences per item) to ensure fast generation. """
 
         result = self.gemini.generate_json(prompt)
         if result and isinstance(result, dict):
@@ -456,12 +472,12 @@ Please fix the output to strictly comply with the schema format. Adhere to integ
         weak_areas = evaluation.get("weak_areas", [])
         score = evaluation.get("overall_score", 50)
 
-        prompt = f"""You are an interviewer for a {role.replace('_', ' ').title()} role.
+        prompt = """You are an interviewer for a {role} role.
 
 Original question: {question_text}
 Candidate's answer: {answer}
 Score: {score}/100
-Weak areas: {', '.join(weak_areas) if weak_areas else 'none identified'}
+Weak areas: {weak_areas}
 
 Generate a follow-up question that:
 - Digs deeper into a weak area of their answer
@@ -473,10 +489,18 @@ Return JSON:
   "text": "<the follow-up question>",
   "category": "<topic category>",
   "type": "technical",
-  "difficulty": "{'hard' if score > 70 else 'medium' if score > 40 else 'easy'}",
+  "difficulty": "{difficulty}",
   "is_follow_up": true,
-  "parent_question": "{question_text[:60]}..."
-}}"""
+  "parent_question": "{parent_question}"
+}}""".format(
+            role=role.replace('_', ' ').title(),
+            question_text=question_text,
+            answer=answer,
+            score=score,
+            weak_areas=', '.join(weak_areas) if weak_areas else 'none identified',
+            difficulty='hard' if score > 70 else 'medium' if score > 40 else 'easy',
+            parent_question=f"{question_text[:60]}..."
+        )
 
         result = self.gemini.generate_json(prompt)
         if result and isinstance(result, dict) and result.get("text"):
@@ -742,13 +766,13 @@ Return JSON:
         strong = (evaluation or {}).get("strong_areas") or []
         weak = (evaluation or {}).get("weak_areas") or []
         if overall_score >= 75:
-            detail = self._transition_focus(strong[0] if strong else None, "your structure")
-            return f"Thank you, that was a solid answer, especially around {detail}. Let us go a little deeper now."
+            detail = self._transition_focus(strong[0] if strong else None, "your core structure")
+            return f"I see, that makes complete sense. I really like your point about {detail}. Let's dive into the next question."
         if overall_score >= 45:
-            detail = self._transition_focus(weak[0] if weak else None, "adding more specifics")
-            return f"Thanks, I followed your point. I would like a bit more depth with {detail}, so let us continue."
-        detail = self._transition_focus(weak[0] if weak else None, "giving a fuller answer")
-        return f"Thanks for trying that. For the next one, focus on {detail} and answer with a clear example."
+            detail = self._transition_focus(weak[0] if weak else None, "adding more technical details")
+            return f"Got it, that's a good start. I'd love to hear a bit more details on {detail} next time, but let's keep moving forward."
+        detail = self._transition_focus(weak[0] if weak else None, "explaining with clear examples")
+        return f"Thanks for sharing that. Let's try the next question—focus on {detail} and try to walk me through a concrete example if you can."
     def _fallback_evaluation(
         self,
         answer: str,

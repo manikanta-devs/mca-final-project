@@ -252,9 +252,24 @@ class InterviewService:
             elif "system design" in top_w or "scale" in top_w:
                 study_plan_weeks = ["Microservices", "Load Balancing & Caching", "NoSQL Scaling", "High Availability Design"]
 
+        # Compute Hiring Probability
+        hiring_prob = min(100.0, max(10.0, overall * 0.95 + (avg_tech * 0.05 if avg_tech else 0)))
+
+        # Compute Company Readiness Scores
+        company_readiness = {
+            "Google": min(100.0, max(10.0, round(overall * 0.85 + avg_tech * 0.1, 1))),
+            "Amazon": min(100.0, max(10.0, round(overall * 0.88 + recruiter_problem_solving * 0.08, 1))),
+            "Meta": min(100.0, max(10.0, round(overall * 0.87 + avg_tech * 0.09, 1))),
+            "TCS": min(100.0, max(10.0, round(overall * 1.05, 1))),
+            "Infosys": min(100.0, max(10.0, round(overall * 1.04, 1))),
+            "Accenture": min(100.0, max(10.0, round(overall * 1.02, 1))),
+        }
+
         results["recruiter_report"] = {
             "verdict": verdict,
             "hiring_recommendation": hiring_rec,
+            "hiring_probability": round(hiring_prob, 1),
+            "company_readiness": company_readiness,
             "metrics": {
                 "confidence": round(recruiter_confidence, 1),
                 "technical_knowledge": round(avg_tech, 1),

@@ -102,12 +102,14 @@ def create_app():
             )
             response.headers["Content-Security-Policy"] = (
                 "default-src 'self'; "
-                "script-src 'self' https://cdn.jsdelivr.net; "
+                "script-src 'self' 'unsafe-eval' https://cdn.jsdelivr.net; "
                 "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
                 "font-src 'self' https://fonts.gstatic.com; "
                 "img-src 'self' data: https:; "
                 "media-src 'self' data: blob:; "
-                "connect-src 'self' https:;"
+                "worker-src 'self' blob: https://cdn.jsdelivr.net; "
+                "child-src 'self' blob: https://cdn.jsdelivr.net; "
+                "connect-src 'self' https://cdn.jsdelivr.net https:;"
             )
         else:
             response.headers["Content-Security-Policy"] = (
@@ -117,7 +119,9 @@ def create_app():
                 "font-src 'self' https://fonts.gstatic.com; "
                 "img-src 'self' data: https:; "
                 "media-src 'self' data: blob:; "
-                "connect-src 'self' http://localhost:5000 http://127.0.0.1:5000 https:;"
+                "worker-src 'self' blob: https://cdn.jsdelivr.net; "
+                "child-src 'self' blob: https://cdn.jsdelivr.net; "
+                "connect-src 'self' http://localhost:5000 http://127.0.0.1:5000 https://cdn.jsdelivr.net https:;"
             )
         return response
 

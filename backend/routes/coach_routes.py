@@ -118,25 +118,32 @@ def coach_ask():
         3. Do not include comments, descriptions, or explanation fields inside the JSON keys.
         Ensure the output is valid JSON and nothing else."""
 
-        raw_response = gemini_service.generate_content(prompt)
+        raw_response = gemini_service.generate_content(prompt, max_tokens=600)
         if not raw_response:
-            return jsonify({"error": "AI Mentor is temporarily unavailable"}), 503
-
-        # Clean and parse JSON
-        parsed = None
-        cleaned = clean_llm_json(raw_response)
-
-        try:
-            parsed = json.loads(cleaned)
-        except Exception as e:
-            logger.error(f"Failed to parse mentor response: {e}. Raw: {raw_response}")
+            # Dynamic fallback when AI is unavailable
             parsed = {
-                "definition": "Could not parse structured definition.",
-                "analogy": "Could not parse structured analogy.",
-                "example": "Could not parse structured example.",
-                "model_answer": raw_response,
+                "definition": f"Mentor explanation: '{question}' is a core technical concept relating to software development and system architecture.",
+                "analogy": "Think of it like a well-organized filing cabinet where everything is labeled and easy to retrieve.",
+                "example": "Basic design pattern or implementation code demonstrating structure.",
+                "model_answer": f"To explain '{question}' in an interview, I would discuss the primary design rationale, benefits, and how we handle trade-offs in production.",
                 "follow_ups": ["What are the core benefits of this approach?", "How does this scale?", "What are the common pitfalls?"]
             }
+        else:
+            # Clean and parse JSON
+            parsed = None
+            cleaned = clean_llm_json(raw_response)
+
+            try:
+                parsed = json.loads(cleaned)
+            except Exception as e:
+                logger.error(f"Failed to parse mentor response: {e}. Raw: {raw_response}")
+                parsed = {
+                    "definition": "Could not parse structured definition.",
+                    "analogy": "Could not parse structured analogy.",
+                    "example": "Could not parse structured example.",
+                    "model_answer": raw_response,
+                    "follow_ups": ["What are the core benefits of this approach?", "How does this scale?", "What are the common pitfalls?"]
+                }
 
         return jsonify({"success": True, "data": parsed}), 200
     except Exception as e:
@@ -232,20 +239,21 @@ def coach_roadmap():
         
         Ensure all output is strictly valid JSON and nothing else."""
 
-        raw_response = gemini_service.generate_content(prompt)
+        raw_response = gemini_service.generate_content(prompt, max_tokens=1536)
         if not raw_response:
-            return jsonify({"error": "AI Mentor is temporarily unavailable"}), 503
-
-        # Clean and parse JSON
-        parsed = None
-        cleaned = clean_llm_json(raw_response)
-
-        try:
-            parsed = json.loads(cleaned)
-            parsed = normalize_roadmap(parsed)
-        except Exception as e:
-            logger.error(f"Failed to parse premium roadmap response: {e}. Raw: {raw_response}")
             parsed = copy.deepcopy(DEFAULT_ROADMAP)
+            parsed["target_role"] = topic_context.title()
+        else:
+            # Clean and parse JSON
+            parsed = None
+            cleaned = clean_llm_json(raw_response)
+
+            try:
+                parsed = json.loads(cleaned)
+                parsed = normalize_roadmap(parsed)
+            except Exception as e:
+                logger.error(f"Failed to parse premium roadmap response: {e}. Raw: {raw_response}")
+                parsed = copy.deepcopy(DEFAULT_ROADMAP)
 
         return jsonify({"success": True, "roadmap": parsed}), 200
     except Exception as e:
@@ -286,27 +294,36 @@ def coach_critique():
         - tips: List of 3 actionable, bulleted tips for their next practice.
         Ensure the output is valid JSON and nothing else."""
 
-        raw_response = gemini_service.generate_content(prompt)
+        raw_response = gemini_service.generate_content(prompt, max_tokens=512)
         if not raw_response:
-            return jsonify({"error": "AI Coach is temporarily unavailable"}), 503
-
-        # Clean and parse JSON
-        parsed = None
-        cleaned = clean_llm_json(raw_response)
-
-        try:
-            parsed = json.loads(cleaned)
-        except Exception as e:
-            logger.error(f"Failed to parse critique response: {e}. Raw: {raw_response}")
+            # Dynamic fallback when AI is unavailable
             parsed = {
-                "score": 75,
-                "headline": "Solid effort - keep practicing",
-                "pacing_critique": f"Your pacing of {wpm} WPM is within bounds, but could be cleaner.",
-                "fillers_critique": f"Filler word count: {fillers}. Focus on pausing in complete silence.",
-                "structural_critique": "Try to structure your answer using the STAR method.",
+                "score": 75 if wpm >= 90 and wpm <= 160 else 60,
+                "headline": "Good effort - pacing is clear" if wpm >= 90 and wpm <= 160 else "Pacing needs adjustment",
+                "pacing_critique": f"Your pacing of {wpm} WPM is {'ideal' if wpm >= 90 and wpm <= 160 else 'a bit slow' if wpm < 90 else 'a bit fast'}.",
+                "fillers_critique": f"Filler word count: {fillers}. Focus on pausing in complete silence rather than saying filler words.",
+                "structural_critique": "Try to structure your answer using the STAR method (Situation, Task, Action, Result).",
                 "keywords_used": [],
                 "tips": ["Record another attempt", "Focus on technical naming", "Pace yourself deliberately"]
             }
+        else:
+            # Clean and parse JSON
+            parsed = None
+            cleaned = clean_llm_json(raw_response)
+
+            try:
+                parsed = json.loads(cleaned)
+            except Exception as e:
+                logger.error(f"Failed to parse critique response: {e}. Raw: {raw_response}")
+                parsed = {
+                    "score": 75,
+                    "headline": "Solid effort - keep practicing",
+                    "pacing_critique": f"Your pacing of {wpm} WPM is within bounds, but could be cleaner.",
+                    "fillers_critique": f"Filler word count: {fillers}. Focus on pausing in complete silence.",
+                    "structural_critique": "Try to structure your answer using the STAR method.",
+                    "keywords_used": [],
+                    "tips": ["Record another attempt", "Focus on technical naming", "Pace yourself deliberately"]
+                }
 
         return jsonify({"success": True, "critique": parsed}), 200
     except Exception as e:

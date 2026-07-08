@@ -20,7 +20,7 @@ class BaseAIProvider:
     def is_available(self) -> bool:
         return bool(self.api_key)
 
-    def generate_content(self, prompt: str, temperature: float = 0.7) -> Optional[str]:
+    def generate_content(self, prompt: str, temperature: float = 0.7, max_tokens: int = 1024) -> Optional[str]:
         raise NotImplementedError("Subclasses must implement generate_content")
 
 
@@ -34,7 +34,7 @@ class LocalProvider(BaseAIProvider):
     def is_available(self) -> bool:
         return bool(self.local_llm and self.local_llm.is_available())
 
-    def generate_content(self, prompt: str, temperature: float = 0.7) -> Optional[str]:
+    def generate_content(self, prompt: str, temperature: float = 0.7, max_tokens: int = 1024) -> Optional[str]:
         try:
             return self.local_llm.generate_content(prompt)
         except Exception as e:
@@ -49,7 +49,7 @@ class HFProvider(BaseAIProvider):
         "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1"
     )
 
-    def generate_content(self, prompt: str, temperature: float = 0.7) -> Optional[str]:
+    def generate_content(self, prompt: str, temperature: float = 0.7, max_tokens: int = 1024) -> Optional[str]:
         headers = {"Authorization": f"Bearer {self.api_key}"}
         try:
             response = requests.post(
@@ -77,55 +77,53 @@ class HFProvider(BaseAIProvider):
 
 
 class GeminiProvider(BaseAIProvider):
-    """Google Gemini API Provider"""
-
-    MODEL_NAME = "gemini-2.0-flash"
+    """Google Gemini API Provider (Direct HTTP REST implementation to bypass SDK gRPC issues)"""
 
     def is_available(self) -> bool:
-        if not self.api_key:
-            return False
-        try:
-            import google.generativeai as genai  # noqa: F401
+        return bool(self.api_key)
 
-            return True
-        except ImportError:
-            return False
-
-    def generate_content(self, prompt: str, temperature: float = 0.7) -> Optional[str]:
-        try:
-            import google.generativeai as genai
-
-            genai.configure(api_key=self.api_key)
-            
-            # Try multiple model fallbacks in case of quota or model limitations
-            models_to_try = [self.MODEL_NAME, "gemini-flash-latest", "gemini-2.5-flash", "gemini-1.5-flash"]
-            last_err = None
-            for model_name in models_to_try:
-                try:
-                    logger.info(f"GeminiProvider ({self.provider_id}) trying model: {model_name}")
-                    model = genai.GenerativeModel(model_name)
-                    generation_config = genai.types.GenerationConfig(
-                        temperature=temperature,
-                        max_output_tokens=4096,
-                    )
-                    response = model.generate_content(
-                        prompt,
-                        generation_config=generation_config,
-                        request_options={"timeout": 8}
-                    )
-                    return response.text.strip()
-                except Exception as ex:
-                    logger.warning(f"Model {model_name} failed on provider {self.provider_id}: {ex}")
-                    last_err = ex
-                    err_msg = (str(ex) + " " + ex.__class__.__name__).lower()
-                    if "429" in err_msg or "quota" in err_msg or "blocked" in err_msg or "exhausted" in err_msg or "limit" in err_msg or "resourceexhausted" in err_msg:
-                        logger.warning(f"GeminiProvider ({self.provider_id}) hit rate limit/quota. Aborting model loop to prevent lag.")
-                        break
-            
-            if last_err:
-                raise last_err
-        except Exception as e:
-            logger.error(f"Gemini API call failed for all models on {self.provider_id}: {e}")
+    def generate_content(self, prompt: str, temperature: float = 0.7, max_tokens: int = 1024) -> Optional[str]:
+        # Try multiple model fallbacks in case of quota or model limitations
+        models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash"]
+        last_err = None
+        
+        for model_name in models_to_try:
+            try:
+                logger.info(f"GeminiProvider ({self.provider_id}) trying HTTP REST for model: {model_name}")
+                url = f"https://generativelanguage.googleapis.com/v1/models/{model_name}:generateContent?key={self.api_key}"
+                headers = {"Content-Type": "application/json"}
+                payload = {
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "generationConfig": {
+                        "temperature": temperature,
+                        "maxOutputTokens": max_tokens
+                    }
+                }
+                
+                response = requests.post(url, headers=headers, json=payload, timeout=6)
+                if response.status_code == 200:
+                    data = response.json()
+                    if "candidates" in data and len(data["candidates"]) > 0:
+                        candidate = data["candidates"][0]
+                        if "content" in candidate and "parts" in candidate["content"]:
+                            parts = candidate["content"]["parts"]
+                            if len(parts) > 0 and "text" in parts[0]:
+                                return parts[0]["text"].strip()
+                    logger.warning(f"HTTP REST response 200 but failed to parse content: {response.text[:200]}")
+                elif response.status_code == 429:
+                    err_msg = response.text
+                    logger.warning(f"GeminiProvider ({self.provider_id}) hit rate limit/quota for {model_name}. Response: {err_msg[:200]}")
+                    last_err = Exception(f"HTTP 429: {err_msg}")
+                else:
+                    err_text = response.text
+                    logger.warning(f"Model {model_name} failed with status {response.status_code}: {err_text[:200]}")
+                    last_err = Exception(f"HTTP {response.status_code}: {err_text}")
+            except Exception as ex:
+                logger.warning(f"Model {model_name} failed on HTTP REST provider {self.provider_id}: {ex}")
+                last_err = ex
+                
+        if last_err:
+            logger.error(f"Gemini API HTTP REST failed for all models on {self.provider_id}: {last_err}")
         return None
 
 
@@ -137,7 +135,7 @@ class GroqProvider(BaseAIProvider):
     # 8b-instant has 6000 TPM on free tier — hits limit on long eval prompts
     MODEL_NAME = "llama-3.3-70b-versatile"
 
-    def generate_content(self, prompt: str, temperature: float = 0.7) -> Optional[str]:
+    def generate_content(self, prompt: str, temperature: float = 0.7, max_tokens: int = 1024) -> Optional[str]:
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -146,14 +144,14 @@ class GroqProvider(BaseAIProvider):
             "model": self.MODEL_NAME,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": temperature,
-            "max_tokens": 2048,
+            "max_tokens": max_tokens,
         }
         try:
             response = requests.post(
                 self.API_URL,
                 headers=headers,
                 json=payload,
-                timeout=10,
+                timeout=5,
             )
             if response.status_code == 200:
                 result = response.json()
@@ -181,7 +179,7 @@ class OpenRouterProvider(BaseAIProvider):
     API_URL = "https://openrouter.ai/api/v1/chat/completions"
     MODEL_NAME = "google/gemma-4-31b-it:free"
 
-    def generate_content(self, prompt: str, temperature: float = 0.7) -> Optional[str]:
+    def generate_content(self, prompt: str, temperature: float = 0.7, max_tokens: int = 1024) -> Optional[str]:
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -192,14 +190,14 @@ class OpenRouterProvider(BaseAIProvider):
             "model": self.MODEL_NAME,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": temperature,
-            "max_tokens": 2048,
+            "max_tokens": max_tokens,
         }
         try:
             response = requests.post(
                 self.API_URL,
                 headers=headers,
                 json=payload,
-                timeout=15,  # OpenRouter free tier is slow, needs >5s
+                timeout=8,  # Fail fast — if OpenRouter doesn't respond in 8s, skip it
             )
             if response.status_code == 200:
                 result = response.json()
@@ -223,7 +221,7 @@ class MistralProvider(BaseAIProvider):
     API_URL = "https://api.mistral.ai/v1/chat/completions"
     MODEL_NAME = "open-mistral-7b"
 
-    def generate_content(self, prompt: str, temperature: float = 0.7) -> Optional[str]:
+    def generate_content(self, prompt: str, temperature: float = 0.7, max_tokens: int = 1024) -> Optional[str]:
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -232,14 +230,14 @@ class MistralProvider(BaseAIProvider):
             "model": self.MODEL_NAME,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": temperature,
-            "max_tokens": 2048,
+            "max_tokens": max_tokens,
         }
         try:
             response = requests.post(
                 self.API_URL,
                 headers=headers,
                 json=payload,
-                timeout=15,  # Mistral free tier is slow, needs >5s
+                timeout=6,  # Mistral free tier needs time but fail-fast at 6s
             )
             if response.status_code == 200:
                 result = response.json()
@@ -255,6 +253,44 @@ class MistralProvider(BaseAIProvider):
         return None
 
 
+class DeepSeekProvider(BaseAIProvider):
+    """DeepSeek API Provider (OpenAI Compatible)"""
+
+    API_URL = "https://api.deepseek.com/chat/completions"
+    MODEL_NAME = "deepseek-chat"
+
+    def generate_content(self, prompt: str, temperature: float = 0.7, max_tokens: int = 1024) -> Optional[str]:
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": self.MODEL_NAME,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+        try:
+            response = requests.post(
+                self.API_URL,
+                headers=headers,
+                json=payload,
+                timeout=10,
+            )
+            if response.status_code == 200:
+                result = response.json()
+                return result["choices"][0]["message"]["content"].strip()
+            elif response.status_code == 429:
+                logger.warning(f"DeepSeek provider {self.provider_id} rate limited (429)")
+            else:
+                logger.error(
+                    f"DeepSeek API error {response.status_code}: {response.text[:200]}"
+                )
+        except Exception as e:
+            logger.error(f"DeepSeek API call failed for {self.provider_id}: {e}")
+        return None
+
+
 class GeminiService:
     """Unified AI service wrapper implementing key rotation and multi-provider fallbacks"""
 
@@ -262,10 +298,21 @@ class GeminiService:
     MAX_RETRIES = 3
     RETRY_DELAY = 2
 
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(GeminiService, cls).__new__(cls, *args, **kwargs)
+            cls._instance.initialized = False
+        return cls._instance
+
     def __init__(self):
+        if getattr(self, "initialized", False):
+            return
         self.providers = []
         self.cooldowns = {}
         self._initialize_providers()
+        self.initialized = True
 
     def _initialize_providers(self):
         # 1. Local LLM Provider if enabled in config
@@ -283,12 +330,13 @@ class GeminiService:
             logger.warning(f"Could not load LOCAL_LLM_ENABLED config: {e}")
 
         # 2. Check and alternate keys (index 1 to 10)
-        # Order: Groq first (fastest free tier), then OpenRouter, Mistral, Gemini, HF last
+        # Order: Gemini first, DeepSeek next, then Groq, OpenRouter, Mistral, HF last
         provider_types = [
+            ("gemini", GeminiProvider, ["GEMINI_API_KEY", "GEMINI_API_KEY_1"]),
+            ("deepseek", DeepSeekProvider, ["DEEPSEEK_API_KEY", "DEEPSEEK_API_KEY_1"]),
             ("groq", GroqProvider, ["GROQ_API_KEY", "GROQ_API_KEY_1"]),
             ("openrouter", OpenRouterProvider, ["OPENROUTER_API_KEY", "OPENROUTER_API_KEY_1"]),
             ("mistral", MistralProvider, ["MISTRAL_API_KEY", "MISTRAL_API_KEY_1"]),
-            ("gemini", GeminiProvider, ["GEMINI_API_KEY", "GEMINI_API_KEY_1"]),
             ("hf", HFProvider, ["HUGGINGFACE_API_KEY", "HUGGINGFACE_API_KEY_1"]),
         ]
 
@@ -367,7 +415,7 @@ class GeminiService:
             "cost_note": f"Fallback chain active with {len(available_providers)} configured providers.",
         }
 
-    def generate_content(self, prompt: str, temperature: float = 0.7) -> Optional[str]:
+    def generate_content(self, prompt: str, temperature: float = 0.7, max_tokens: int = 1024) -> Optional[str]:
         """Generate content - tries providers in order, skipping cooldowns"""
         available_providers = [p for p in self.providers if p.is_available()]
         if not available_providers:
@@ -380,20 +428,22 @@ class GeminiService:
             p for p in available_providers if now >= self.cooldowns.get(p.provider_id, 0)
         ]
 
-        # If all configured providers are on cooldown, ignore the cooldown
+        # If all providers are on cooldown, return None immediately — use fallback data
+        # DO NOT retry them — they are failing and will waste time
         if not active_providers:
-            logger.warning("All configured AI providers are on cooldown. Bypassing cooldown safety.")
-            active_providers = available_providers
+            logger.warning("All AI providers are on cooldown. Returning None immediately for fast fallback.")
+            return None
 
         # Max attempts to make: try each active provider once
         max_attempts = len(active_providers)
+        consecutive_failures = 0
 
         for attempt in range(max_attempts):
             provider = active_providers[attempt]
             try:
                 logger.info(f"Attempting content generation using provider: {provider.provider_id}")
                 start_time = time.time()
-                result = provider.generate_content(prompt, temperature=temperature)
+                result = provider.generate_content(prompt, temperature=temperature, max_tokens=max_tokens)
 
                 if result:
                     elapsed = round(time.time() - start_time, 2)
@@ -404,24 +454,33 @@ class GeminiService:
                 logger.warning(
                     f"Provider {provider.provider_id} returned empty result. Triggering cooldown."
                 )
-                self.cooldowns[provider.provider_id] = time.time() + 15
+                self.cooldowns[provider.provider_id] = time.time() + 300
+                consecutive_failures += 1
 
             except ValueError as ve:
+                err_msg = str(ve).lower()
+                cooldown_dur = 300 if any(k in err_msg for k in ["429", "quota", "limit", "timeout", "dns", "nameresolutionerror"]) else 15
                 if str(ve) == "PROMPT_TOO_LARGE":
-                    # Don't cooldown on prompt-size errors — the provider is fine, just the prompt is big
                     logger.warning(f"Provider {provider.provider_id} skipped (prompt too large) — no cooldown")
                 else:
-                    logger.error(f"Provider {provider.provider_id} failed with ValueError: {ve}. Triggering cooldown.")
-                    self.cooldowns[provider.provider_id] = time.time() + 15
+                    logger.error(f"Provider {provider.provider_id} failed with ValueError: {ve}. Triggering cooldown for {cooldown_dur}s.")
+                    self.cooldowns[provider.provider_id] = time.time() + cooldown_dur
+                    consecutive_failures += 1
             except Exception as e:
+                err_msg = str(e).lower()
+                cooldown_dur = 300 if any(k in err_msg for k in ["429", "quota", "limit", "timeout", "dns", "nameresolutionerror"]) else 15
                 logger.error(
-                    f"Provider {provider.provider_id} failed with error: {e}. Triggering cooldown."
+                    f"Provider {provider.provider_id} failed with error: {e}. Triggering cooldown for {cooldown_dur}s."
                 )
-                self.cooldowns[provider.provider_id] = time.time() + 15
+                self.cooldowns[provider.provider_id] = time.time() + cooldown_dur
+                consecutive_failures += 1
 
-            # Brief pause before trying next provider (if not the last attempt)
-            if attempt < max_attempts - 1:
-                time.sleep(1)
+            if consecutive_failures >= 2:
+                logger.warning("Multiple consecutive provider failures. Aborting chain to fail fast.")
+                # Temporarily put other untried providers on cooldown so next requests fail fast too
+                for p in active_providers[attempt + 1:]:
+                    self.cooldowns[p.provider_id] = time.time() + 180
+                break
 
         logger.error("All available AI providers in the chain failed to generate content.")
         return None
@@ -433,7 +492,7 @@ class GeminiService:
 IMPORTANT: Respond ONLY with valid JSON. No markdown, no backticks, no explanation.
 Just the raw JSON object or array."""
 
-        response = self.generate_content(json_prompt, temperature=0.3)
+        response = self.generate_content(json_prompt, temperature=0.3, max_tokens=1536)
         if not response:
             return None
 

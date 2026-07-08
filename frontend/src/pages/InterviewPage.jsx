@@ -64,6 +64,9 @@ import {
   Volume2,
 
 
+  Clock,
+
+
   Zap,
 
 
@@ -86,6 +89,7 @@ import { MiniScoreRow } from '../components/ScoreCard'
 
 
 import { analyzeVoiceTranscript, getSpeechRecognition, countFillers } from '../utils/voiceInterview'
+import PreInterviewChecklist from '../components/PreInterviewChecklist'
 
 
 import { getNextDifficulty, generateLiveCoachingTips, shouldAskFollowUp } from '../utils/adaptiveEngine'
@@ -162,17 +166,9 @@ const ROLE_OPTIONS = [
 
 
 const FORMAT_OPTIONS = [
-
-
-  { value: 'text', label: 'Text', desc: 'Typed answers with AI scoring' },
-
-
-  { value: 'voice', label: 'Voice', desc: 'Mic capture and transcript analysis' },
-
-
-  { value: 'video', label: 'Video', desc: 'Camera preview plus spoken answers' },
-
-
+  { value: 'text', label: 'Text', desc: 'Type your answers — no mic or camera needed', icon: 'type' },
+  { value: 'voice', label: 'Voice', desc: 'Speak your answers — mic only, no camera', icon: 'mic' },
+  { value: 'video', label: 'Video', desc: 'Speak + camera — full emotion & posture tracking', icon: 'video' },
 ]
 
 const COMPANY_OPTIONS = [
@@ -277,120 +273,7 @@ function normalizeQuestion(question, index) {
 }
 
 function buildCorporateInterviewQuestions({ generatedQuestions = [], resumeData, candidateName, company, panelMode }) {
-  const firstName = (candidateName || 'Candidate').trim().split(/\s+/)[0] || 'Candidate'
-  const education = resumeData?.education?.[0]
-  const skills = resumeData?.skills?.all || []
-  const primarySkill = skills[0] || 'your strongest technical skill'
-  const secondarySkill = skills[1] || 'your project work'
-  const companyName = company && company !== 'General' && company !== 'Custom' ? company : 'our company'
-  const technicalPersona = panelMode ? 'technical_lead' : undefined
-  const hrPersona = panelMode ? 'hr_manager' : undefined
-  const strictPersona = panelMode ? 'strict_manager' : undefined
-
-  if (generatedQuestions.length <= 5) {
-    const openingQ = {
-      text: `Hello ${firstName}. Let's start with a brief introduction. Could you tell me a little about yourself and walk me through your background?`,
-      category: 'Introduction',
-      round: 'Introduction',
-      type: 'behavioral',
-      difficulty: 'easy',
-      persona_id: hrPersona,
-    }
-    const closingQ = {
-      text: 'We have reached the end of the interview. Do you have any questions for me about the company, role, or next steps?',
-      category: 'Candidate Questions',
-      round: 'Wrap Up',
-      type: 'behavioral',
-      difficulty: 'easy',
-      persona_id: hrPersona,
-    }
-    return [openingQ, ...generatedQuestions, closingQ].map((q, idx) => ({ ...q, id: idx + 1 }))
-  }
-
-  const opening = [
-    {
-      text: `Good morning ${firstName}. Please confirm your full name before we begin.`,
-      category: 'Identity Verification',
-      round: 'Identity Verification',
-      type: 'behavioral',
-      difficulty: 'easy',
-      persona_id: hrPersona,
-    },
-    {
-      text: education
-        ? `According to your resume, your education includes: ${education}. Is that correct? Please briefly confirm and add one important academic achievement.`
-        : 'Please confirm your current education or latest qualification and one academic achievement you are proud of.',
-      category: 'Resume Verification',
-      round: 'Resume Verification',
-      type: 'behavioral',
-      difficulty: 'easy',
-      persona_id: hrPersona,
-    },
-    {
-      text: 'Great. How are you feeling today, and what mindset are you bringing into this interview?',
-      category: 'Ice Breaker',
-      round: 'Ice Breaking',
-      type: 'behavioral',
-      difficulty: 'easy',
-      persona_id: hrPersona,
-    },
-    {
-      text: 'Please introduce yourself in about 60 to 90 seconds. Include your education, key skills, important projects, and career goals.',
-      category: 'Introduction',
-      round: 'Tell Me About Yourself',
-      type: 'behavioral',
-      difficulty: 'easy',
-      persona_id: hrPersona,
-      time_limit_seconds: 90,
-    },
-  ]
-
-  const generated = generatedQuestions
-    .filter(q => q?.text && q.category !== 'Resume Walkthrough')
-    .slice(0, 8)
-    .map(q => ({ ...q, round: q.type === 'technical' ? 'Technical Round' : q.type === 'situational' ? 'Situation Round' : 'Resume-Based Questions' }))
-
-  const hrRound = [
-    { text: 'Why should we hire you for this role?', category: 'HR Round', round: 'HR Round', type: 'behavioral', difficulty: 'medium', persona_id: hrPersona },
-    { text: 'Tell me one strength that will help you succeed in this job, and give a real example.', category: 'HR Round', round: 'HR Round', type: 'behavioral', difficulty: 'easy', persona_id: hrPersona },
-    { text: 'What is one weakness you are actively improving, and what steps are you taking?', category: 'HR Round', round: 'HR Round', type: 'behavioral', difficulty: 'medium', persona_id: hrPersona },
-    { text: 'Tell me about a time you worked in a team. What was your role and what was the result?', category: 'Teamwork', round: 'HR Round', type: 'behavioral', difficulty: 'medium', persona_id: hrPersona },
-    { text: `Why do you want to join ${companyName}, and how does this role connect with your long-term goals?`, category: 'Company Fit', round: 'HR Round', type: 'behavioral', difficulty: 'medium', persona_id: hrPersona },
-  ]
-
-  const technicalRound = [
-    { text: `I noticed ${primarySkill} on your resume. Explain your practical experience with it and one problem you solved using it.`, category: primarySkill, round: 'Technical Round', type: 'technical', difficulty: 'medium', persona_id: technicalPersona },
-    { text: `Compare ${primarySkill} with ${secondarySkill} from a project point of view. Where did each one help you most?`, category: 'Technical Comparison', round: 'Technical Round', type: 'technical', difficulty: 'medium', persona_id: technicalPersona },
-    { text: 'You now have a coding-style question: reverse a string without using built-in reverse functions. Explain your approach, edge cases, and complexity.', category: 'Coding Round', round: 'Coding Round', type: 'technical', difficulty: 'medium', persona_id: technicalPersona, time_limit_seconds: 300 },
-  ]
-
-  const situationRound = [
-    { text: 'Imagine your project deadline is tomorrow and your teammate suddenly becomes unavailable. What would you do?', category: 'Deadline Pressure', round: 'Situation Round', type: 'situational', difficulty: 'medium', persona_id: strictPersona },
-    { text: 'A customer is angry because your application crashed during an important demo. How would you handle the situation?', category: 'Customer Handling', round: 'Situation Round', type: 'situational', difficulty: 'medium', persona_id: hrPersona },
-    { text: 'Your manager asks you to learn a completely new technology within one week. How would you approach it?', category: 'Learning Agility', round: 'Situation Round', type: 'situational', difficulty: 'medium', persona_id: strictPersona },
-  ]
-
-  const rapidFire = [
-    { text: 'Rapid fire: What is polymorphism? Answer in 20 seconds.', category: 'Rapid Fire', round: 'Rapid Fire', type: 'technical', difficulty: 'easy', persona_id: technicalPersona, time_limit_seconds: 20 },
-    { text: 'Rapid fire: What is the difference between GET and POST? Answer in 20 seconds.', category: 'Rapid Fire', round: 'Rapid Fire', type: 'technical', difficulty: 'easy', persona_id: technicalPersona, time_limit_seconds: 20 },
-    { text: 'Rapid fire: What is an API? Answer in 20 seconds.', category: 'Rapid Fire', round: 'Rapid Fire', type: 'technical', difficulty: 'easy', persona_id: technicalPersona, time_limit_seconds: 20 },
-  ]
-
-  const closing = [
-    { text: 'We have reached the end of the interview. Do you have any questions for me about the company, role, or interview process?', category: 'Candidate Questions', round: 'Candidate Questions', type: 'behavioral', difficulty: 'easy', persona_id: hrPersona },
-    { text: 'Thank you for taking the interview. Before I generate your report, give one final reason you believe you are suitable for the next round.', category: 'Final Closing', round: 'Final Closing', type: 'behavioral', difficulty: 'medium', persona_id: hrPersona },
-  ]
-
-  const allQuestions = [...opening, ...generated, ...hrRound, ...technicalRound, ...situationRound, ...rapidFire, ...closing]
-  const seen = new Set()
-  return allQuestions
-    .filter(question => {
-      const key = question.text.toLowerCase()
-      if (seen.has(key)) return false
-      seen.add(key)
-      return true
-    })
-    .map(normalizeQuestion)
+  return (generatedQuestions || []).map((q, idx) => normalizeQuestion(q, idx))
 }
 
 
@@ -585,6 +468,7 @@ export default function InterviewPage() {
 
 
   const [phase, setPhase] = useState(PHASE.SETUP)
+  const [precheckStream, setPrecheckStream] = useState(null)
 
 
   const [interviewFormat, setInterviewFormat] = useState(hasSpeechSupport ? 'voice' : 'text')
@@ -798,6 +682,7 @@ export default function InterviewPage() {
         interview_format: interviewFormat,
         difficulty: difficulty,
         panel_mode: panelMode,
+        interviewer_persona: interviewerPersona,
       })
 
       setSessionId(startData.session_id)
@@ -1009,7 +894,9 @@ export default function InterviewPage() {
     if (onboardingQuestionText && zoomPhase && zoomPhase !== 'greet_mic') {
       textToSpeak = onboardingQuestionText
     } else if (zoomPhase === 'greet_mic') {
-      textToSpeak = "Hello, good morning! Welcome to the interview. Can you hear and see me clearly?"
+      textToSpeak = interviewFormat === 'voice'
+        ? "Hello, good morning! Welcome to the interview. Can you hear me clearly?"
+        : "Hello, good morning! Welcome to the interview. Can you hear and see me clearly?"
     } else if (zoomPhase === 'small_talk') {
       textToSpeak = "Wonderful. Thank you for joining on time. How has your day been so far?"
     } else if (zoomPhase === 'identity_confirm') {
@@ -1312,14 +1199,37 @@ export default function InterviewPage() {
     if (phase !== PHASE.INTERVIEWING || !zoomPhase || interviewFormat === 'text') return undefined
 
     if (zoomPhase === 'connecting') {
-      // Proactively request media so camera/mic turn on immediately — no deadlock
-      if (!activeMediaStream) {
-        startVoiceCapture().catch((err) => {
-          console.error('Media capture failed during connecting:', err)
-          setZoomPhase(null) // escape spinner if permissions denied
-        })
-      } else if (interviewFormat !== 'video' || cameraReady) {
-        setZoomPhase('greet_mic')
+      if (interviewFormat === 'voice') {
+        // Voice mode: if we already have a stream from precheck, advance immediately
+        if (activeMediaStream && activeMediaStream.getAudioTracks().length > 0) {
+          setZoomPhase('greet_mic')
+          return undefined
+        }
+        // Otherwise request mic only
+        if (!activeMediaStream) {
+          startVoiceCapture().catch((err) => {
+            console.error('Voice capture failed:', err)
+            setZoomPhase(null)
+          })
+        }
+      } else if (interviewFormat === 'video') {
+        // Video mode: advance once camera is ready, or after 3s timeout fallback
+        if (activeMediaStream && (cameraReady || activeMediaStream.getVideoTracks().length > 0)) {
+          if (!cameraReady) setCameraReady(true)
+          setZoomPhase('greet_mic')
+          return undefined
+        }
+        if (!activeMediaStream) {
+          startVoiceCapture().catch((err) => {
+            console.error('Media capture failed during connecting:', err)
+            setZoomPhase(null)
+          })
+        }
+        // 3-second fallback — never stay stuck on 'connecting'
+        const fallback = setTimeout(() => {
+          setZoomPhase('greet_mic')
+        }, 3000)
+        return () => clearTimeout(fallback)
       }
       return undefined
     }
@@ -1330,44 +1240,63 @@ export default function InterviewPage() {
     return undefined
   }, [])
 
+  // Attach camera stream to video element whenever stream or ref becomes available
   useEffect(() => {
-    if (interviewFormat === 'video' && activeMediaStream && cameraPreviewRef.current) {
+    if (interviewFormat !== 'video') return
+    if (!activeMediaStream) return
+
+    // Try immediately, and retry until the ref mounts (component may not be mounted yet)
+    const attachStream = () => {
       const videoEl = cameraPreviewRef.current
-      if (videoEl.srcObject !== activeMediaStream) {
-        videoEl.srcObject = activeMediaStream
-        
+      if (!videoEl) return false
+      if (videoEl.srcObject === activeMediaStream) return true // already attached
+
+      videoEl.srcObject = activeMediaStream
+      videoEl.play().catch(() => {})
+      setCameraReady(true)  // ← CRITICAL: allows zoom phase to advance past 'connecting'
+
+      stopEmotionSamplerRef.current?.()
+      emotionHistoryRef.current = []
+      setEmotionSnapshot(createEmotionSnapshot())
+      isTelemetryOverriddenRef.current = false
+
+      const beginEmotionSampling = () => {
         stopEmotionSamplerRef.current?.()
-        emotionHistoryRef.current = []
-        setEmotionSnapshot(createEmotionSnapshot())
-        isTelemetryOverriddenRef.current = false
-        
-        const beginEmotionSampling = () => {
-          stopEmotionSamplerRef.current?.()
-          stopEmotionSamplerRef.current = startEmotionSampler({
-            video: videoEl,
-            onUpdate: snapshot => {
-              emotionHistoryRef.current = [...emotionHistoryRef.current.slice(-79), snapshot]
-              if (!isTelemetryOverriddenRef.current) {
-                setEmotionSnapshot(snapshot)
-              } else {
-                setEmotionSnapshot(prev => ({
-                  ...prev,
-                  raw_landmarks: snapshot.raw_landmarks,
-                  raw_stats: snapshot.raw_stats
-                }))
-              }
+        stopEmotionSamplerRef.current = startEmotionSampler({
+          video: videoEl,
+          onUpdate: snapshot => {
+            emotionHistoryRef.current = [...emotionHistoryRef.current.slice(-79), snapshot]
+            if (!isTelemetryOverriddenRef.current) {
+              setEmotionSnapshot(snapshot)
+            } else {
+              setEmotionSnapshot(prev => ({
+                ...prev,
+                raw_landmarks: snapshot.raw_landmarks,
+                raw_stats: snapshot.raw_stats
+              }))
             }
-          })
-        }
-        
-        if (videoEl.readyState >= 2) {
-          beginEmotionSampling()
-        } else {
-          videoEl.onloadedmetadata = beginEmotionSampling
-        }
+          }
+        })
       }
+
+      if (videoEl.readyState >= 2) {
+        beginEmotionSampling()
+      } else {
+        videoEl.onloadedmetadata = beginEmotionSampling
+      }
+      return true
     }
-  }, [activeMediaStream, cameraPreviewRef.current, interviewFormat])
+
+    // Try immediately
+    if (attachStream()) return
+
+    // If ref not ready yet, retry with an interval until it mounts
+    const interval = setInterval(() => {
+      if (attachStream()) clearInterval(interval)
+    }, 100)
+
+    return () => clearInterval(interval)
+  }, [activeMediaStream, interviewFormat, phase])
 
 
 
@@ -1972,17 +1901,11 @@ export default function InterviewPage() {
 
 
   const handleGenerate = async () => {
-
     hasGreetedRef.current = false
     setPhase(PHASE.GENERATING)
-
-
     const toastId = toast.loading('Generating AI questions...')
 
-
     try {
-
-
       const { data } = await generateQuestions({
         resume_data: resumeData || {},
         role: selectedRole,
@@ -1993,10 +1916,7 @@ export default function InterviewPage() {
         company_context: companyContext,
       })
 
-
       if (data.success && data.questions.length > 0) {
-
-
         const interviewQuestions = buildCorporateInterviewQuestions({
           generatedQuestions: data.questions,
           resumeData: resumeData || {},
@@ -2005,109 +1925,53 @@ export default function InterviewPage() {
           panelMode,
         })
 
-
         setQuestions(interviewQuestions)
 
-
         const { data: startData } = await startInterview({
-
-
           questions: interviewQuestions,
-
-
           resume_data: resumeData || {},
-
-
           role: selectedRole,
-
-
           candidate_name: candidateName || 'Candidate',
-
-
           interview_format: interviewFormat,
-
-
           difficulty: difficulty,
-
-
           panel_mode: panelMode,
-
-
+          interviewer_persona: interviewerPersona,
         })
 
-
         setSessionId(startData.session_id)
-
-
         setInterviewSession(startData)
-
-
         setCurrentIndex(0)
-
-
         setEvaluation(null)
-
-
         setAnswer('')
-
-
         setVoiceTranscript('')
-
-
         setVoiceInterim('')
-
-
         setVoiceMetrics(null)
-
-
         setVoiceError('')
         setEmotionSnapshot(createEmotionSnapshot())
         isTelemetryOverriddenRef.current = false
-
-
         setShowHint(false)
-
-
         setShowTypingFallback(false)
 
+        toast.dismiss(toastId)
 
-        setPhase(PHASE.INTERVIEWING)
-        if (typeof window !== 'undefined') {
-          window._heardHello = false
+        // For voice/video: go to device precheck lobby first
+        // For text: skip lobby and go straight to interview
+        if (interviewFormat === 'text') {
+          setPhase(PHASE.INTERVIEWING)
+          if (typeof window !== 'undefined') window._heardHello = false
+        } else {
+          // Route to precheck lobby — it will call onBegin() to start interviewing
+          setPhase(PHASE.ROOM_ENTRY)
         }
-        if (interviewFormat !== 'text') {
-          setZoomPhase('connecting')
-          setOnboardingQuestionText('')
-          hasGreetedRef.current = false
-          hasEncouragedRef.current = false
-          hasGreetNudgeRef.current = false
-          lastSpeechTimeRef.current = Date.now()
-          setEncouragementText('')
-        }
-        toast.success(`Mock interview session started!`, { id: toastId })
-
 
       } else {
-
-
         throw new Error('No questions generated')
-
-
       }
 
-
     } catch (error) {
-
-
       toast.error(error.response?.data?.error || 'Failed to generate questions', { id: toastId })
-
-
       setPhase(PHASE.SETUP)
-
-
     }
-
-
   }
 
 
@@ -2660,7 +2524,92 @@ export default function InterviewPage() {
     return (
       <div className="space-y-0 animate-in">
 
-        {/* ━━━ HERO ENTRY CARD ━━━ */}
+        {/* ━━━ INTERVIEW MODE SELECTOR (Big Cards) ━━━ */}
+        <div className="mb-6">
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">Choose Interview Mode</p>
+          <div className="grid grid-cols-3 gap-3">
+            {/* TEXT MODE */}
+            <button
+              onClick={() => setInterviewFormat('text')}
+              className={clsx(
+                'relative flex flex-col items-start gap-3 p-5 rounded-2xl border-2 transition-all text-left',
+                interviewFormat === 'text'
+                  ? 'border-violet-500 bg-violet-500/10 shadow-lg shadow-violet-500/20'
+                  : 'border-gray-200 dark:border-white/10 bg-white dark:bg-slate-900/60 hover:border-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/10'
+              )}
+            >
+              {interviewFormat === 'text' && (
+                <span className="absolute top-3 right-3 text-[9px] font-black uppercase bg-violet-500 text-white px-2 py-0.5 rounded-full tracking-wider">Active</span>
+              )}
+              <div className="w-10 h-10 rounded-xl bg-violet-500/15 border border-violet-500/25 flex items-center justify-center">
+                <Type className="w-5 h-5 text-violet-400" />
+              </div>
+              <div>
+                <p className="font-black text-sm text-gray-900 dark:text-white">Text Interview</p>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">Type your answers — no mic or camera needed</p>
+              </div>
+              <div className="flex flex-wrap gap-1 mt-auto pt-1">
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-500">⌨️ Keyboard</span>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-500">🤖 AI Scoring</span>
+              </div>
+            </button>
+
+            {/* VOICE MODE */}
+            <button
+              onClick={() => setInterviewFormat('voice')}
+              className={clsx(
+                'relative flex flex-col items-start gap-3 p-5 rounded-2xl border-2 transition-all text-left',
+                interviewFormat === 'voice'
+                  ? 'border-cyan-500 bg-cyan-500/10 shadow-lg shadow-cyan-500/20'
+                  : 'border-gray-200 dark:border-white/10 bg-white dark:bg-slate-900/60 hover:border-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/10'
+              )}
+            >
+              {interviewFormat === 'voice' && (
+                <span className="absolute top-3 right-3 text-[9px] font-black uppercase bg-cyan-500 text-white px-2 py-0.5 rounded-full tracking-wider">Active</span>
+              )}
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/15 border border-cyan-500/25 flex items-center justify-center">
+                <Mic className="w-5 h-5 text-cyan-400" />
+              </div>
+              <div>
+                <p className="font-black text-sm text-gray-900 dark:text-white">Voice Interview</p>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">Speak your answers — mic only, no camera required</p>
+              </div>
+              <div className="flex flex-wrap gap-1 mt-auto pt-1">
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-cyan-100 dark:bg-cyan-500/10 text-cyan-700 dark:text-cyan-400">🎙️ Microphone</span>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-500">📝 Transcript</span>
+              </div>
+            </button>
+
+            {/* VIDEO MODE */}
+            <button
+              onClick={() => setInterviewFormat('video')}
+              className={clsx(
+                'relative flex flex-col items-start gap-3 p-5 rounded-2xl border-2 transition-all text-left',
+                interviewFormat === 'video'
+                  ? 'border-indigo-500 bg-indigo-500/10 shadow-lg shadow-indigo-500/20'
+                  : 'border-gray-200 dark:border-white/10 bg-white dark:bg-slate-900/60 hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/10'
+              )}
+            >
+              {interviewFormat === 'video' && (
+                <span className="absolute top-3 right-3 text-[9px] font-black uppercase bg-indigo-500 text-white px-2 py-0.5 rounded-full tracking-wider">Active</span>
+              )}
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/25 flex items-center justify-center">
+                <Video className="w-5 h-5 text-indigo-400" />
+              </div>
+              <div>
+                <p className="font-black text-sm text-gray-900 dark:text-white">Video Interview</p>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">Speak + live camera — emotion & posture tracking</p>
+              </div>
+              <div className="flex flex-wrap gap-1 mt-auto pt-1">
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400">📹 Camera</span>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400">🎙️ Mic</span>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-500">🧠 AI Vision</span>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {/* ━━━ HERO ENTRY CARD (Dynamic based on mode) ━━━ */}
         <div className="card bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950/70 border-none shadow-2xl p-6 rounded-3xl relative overflow-hidden text-white mb-6">
           <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_20%_20%,rgba(99,102,241,0.18),transparent_35%),radial-gradient(circle_at_85%_10%,rgba(34,197,94,0.1),transparent_26%)]" />
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
@@ -2677,13 +2626,17 @@ export default function InterviewPage() {
               )}
               <div>
                 <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-[0.2em] block mb-1">
-                  AI Video Interview
+                  {interviewFormat === 'text' ? '⌨️ Text Interview' : interviewFormat === 'voice' ? '🎙️ Voice Interview' : '📹 Video Interview'}
                 </span>
                 <h1 className="text-2xl font-black leading-tight">
                   {interviewerName} is ready to interview you
                 </h1>
                 <p className="text-sm text-white/55 mt-1">
-                  Camera and mic will turn on automatically when you start. Speak naturally — the AI listens, records, and responds like a real HR.
+                  {interviewFormat === 'text'
+                    ? 'Type your answers below each question. AI will score and give feedback instantly.'
+                    : interviewFormat === 'voice'
+                    ? 'Microphone will activate when you start. Speak naturally — the AI listens and transcribes.'
+                    : 'Camera and mic will turn on when you start. AI tracks emotions, posture, and eye contact.'}
                 </p>
               </div>
             </div>
@@ -2916,10 +2869,17 @@ export default function InterviewPage() {
             {/* START CTA */}
             <button
               onClick={handleGenerate}
-              className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-black text-base shadow-2xl shadow-indigo-500/25 transition-all hover:shadow-indigo-500/40 hover:scale-[1.02] active:scale-[0.98]"
+              className={clsx(
+                'w-full flex items-center justify-center gap-3 py-4 rounded-2xl text-white font-black text-base shadow-2xl transition-all hover:scale-[1.02] active:scale-[0.98]',
+                interviewFormat === 'text'
+                  ? 'bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 shadow-violet-500/25 hover:shadow-violet-500/40'
+                  : interviewFormat === 'voice'
+                  ? 'bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 shadow-cyan-500/25 hover:shadow-cyan-500/40'
+                  : 'bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 shadow-indigo-500/25 hover:shadow-indigo-500/40'
+              )}
             >
-              <Video className="w-5 h-5" />
-              Start Interview
+              {interviewFormat === 'text' ? <Type className="w-5 h-5" /> : interviewFormat === 'voice' ? <Mic className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+              Start {interviewFormat === 'text' ? 'Text' : interviewFormat === 'voice' ? 'Voice' : 'Video'} Interview
             </button>
 
           </div>
@@ -2932,14 +2892,20 @@ export default function InterviewPage() {
 
   if (phase === PHASE.ROOM_ENTRY) {
     return (
-      <WalkInInterviewRoom
+      <PreInterviewChecklist
         candidateName={candidateName || 'Candidate'}
         roleLabel={selectedRoleLabel}
         resumeData={resumeData}
         interviewerPersona={interviewerPersona}
         interviewerName={interviewerName}
+        interviewFormat={interviewFormat}
         onBack={() => setPhase(PHASE.SETUP)}
-        onBegin={() => {
+        onBegin={(stream) => {
+          if (stream) {
+            mediaStreamRef.current = stream
+            setActiveMediaStream(stream)
+            setPrecheckStream(stream)
+          }
           setPhase(PHASE.INTERVIEWING)
           if (typeof window !== 'undefined') {
             window._heardHello = false
@@ -2993,15 +2959,291 @@ export default function InterviewPage() {
   }
 
 
+  // Dedicated full-screen Text Interview layout
+  if (
+    (phase === PHASE.INTERVIEWING || phase === PHASE.EVALUATING) &&
+    interviewFormat === 'text'
+  ) {
+    const totalQuestions = questions.length
+    const wordCount = answer.split(/\s+/).filter(Boolean).length
+    const charCount = answer.length
+
+    // Dynamic hint based on role
+    const getHint = () => {
+      if (selectedRoleLabel.toLowerCase().includes('engineer') || selectedRoleLabel.toLowerCase().includes('developer')) {
+        return "Try mentioning key technologies: architecture patterns, testing methodologies, and scalability tradeoffs."
+      }
+      return "Focus on structuring your response with a clear context, your specific actions, and the measurable results achieved."
+    }
+
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col text-white font-sans overflow-hidden select-none bg-[#090d16] interview-mesh-bg animate-in fade-in duration-300">
+        <AmbientParticles />
+
+        {/* ━━━ EVALUATING OVERLAY ━━━ */}
+        {phase === PHASE.EVALUATING && (
+          <div className="absolute inset-0 z-[60] flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-5">
+              <div className="relative w-20 h-20">
+                <div className="absolute inset-0 rounded-full border-4 border-cyan-500/30 animate-ping" />
+                <div className="absolute inset-2 rounded-full border-4 border-cyan-400/60 animate-pulse" />
+                <div className="absolute inset-4 rounded-full bg-gradient-to-br from-cyan-500 to-indigo-500 flex items-center justify-center shadow-lg">
+                  <svg className="w-6 h-6 text-white animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                  </svg>
+                </div>
+              </div>
+              <div className="text-center">
+                <p className="text-white font-bold text-lg">Evaluating your response...</p>
+                <p className="text-gray-400 text-sm mt-1">{interviewerName} is analyzing your answer</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ━━━ TOP HEADER BAR ━━━ */}
+        <div className="h-14 border-b border-white/5 bg-slate-950/85 px-5 flex items-center justify-between z-20 relative backdrop-blur-md">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-600 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-violet-500/20">
+              <Type className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h1 className="text-sm font-black tracking-tight text-white flex items-center gap-2">
+                AI Text Interview <span className="text-[10px] font-normal text-gray-400">Preparation Suite</span>
+              </h1>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleFinish}
+              className="px-4 py-1.5 rounded-full bg-red-600 hover:bg-red-500 text-xs font-bold text-white transition-all shadow-md shadow-red-600/20"
+            >
+              End Interview
+            </button>
+          </div>
+        </div>
+
+        {/* ━━━ STATS BAR ROW ━━━ */}
+        <div className="h-16 border-b border-white/5 bg-slate-950/40 px-6 flex items-center justify-between z-20 relative gap-4">
+          <div className="flex items-center gap-6 text-xs text-gray-300">
+            {/* Question */}
+            <div className="flex flex-col">
+              <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Question</span>
+              <span className="font-extrabold text-white flex items-center gap-1.5">
+                <Type className="w-3.5 h-3.5 text-violet-400" />
+                {currentIndex + 1} / {totalQuestions}
+              </span>
+            </div>
+
+            {/* Time left */}
+            <div className="flex flex-col">
+              <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Time Left</span>
+              <span className="font-extrabold text-white flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-violet-400" />
+                {formatTime(Math.max(0, 900 - totalElapsed))}
+              </span>
+            </div>
+
+            {/* Total time */}
+            <div className="flex flex-col">
+              <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Total Time</span>
+              <span className="font-extrabold text-white flex items-center gap-1.5 font-mono">
+                {formatTime(totalElapsed)}
+              </span>
+            </div>
+
+            {/* Mode */}
+            <div className="flex flex-col">
+              <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Mode</span>
+              <span className="font-extrabold text-white flex items-center gap-1">
+                Text
+              </span>
+            </div>
+
+            {/* Difficulty */}
+            <div className="flex flex-col">
+              <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Difficulty</span>
+              <span className="font-extrabold text-amber-400 flex items-center gap-1">
+                <Zap className="w-3.5 h-3.5" />
+                {adaptiveDifficulty.toUpperCase()}
+              </span>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div className="flex-1 max-w-xs flex items-center gap-3">
+            <span className="text-[10px] font-bold text-gray-500 uppercase">Progress</span>
+            <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full transition-all duration-300" style={{ width: `${((currentIndex + 1) / totalQuestions) * 100}%` }} />
+            </div>
+          </div>
+        </div>
+
+        {/* ━━━ MAIN WORKSPACE ━━━ */}
+        <div className="flex-1 flex gap-5 p-5 min-h-0 relative z-10 overflow-hidden">
+          {/* Left panel: Question description + Input area */}
+          <div className="flex-1 flex flex-col gap-4 min-h-0">
+            
+            {/* Interviewer Message Card */}
+            <div className="rounded-3xl border border-white/[0.08] bg-slate-900/60 p-5 flex flex-col gap-3 relative shadow-2xl shrink-0">
+              <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center">
+                    <Sparkles className="w-4.5 h-4.5 text-white" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-black text-white">{interviewerName}</span>
+                    <span className="text-[9px] text-gray-400 block">Interviewer (AI)</span>
+                  </div>
+                </div>
+                <span className="text-[10px] text-gray-500">Live</span>
+              </div>
+              <p className="text-base font-black text-white leading-relaxed">
+                {currentQuestion?.text}
+              </p>
+              
+              {/* Context tags / buttons */}
+              <div className="flex flex-wrap gap-2 pt-1">
+                <button 
+                  onClick={() => toast(getHint(), { icon: '💡', duration: 4000 })}
+                  className="px-3.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-[10px] font-bold text-gray-300 transition-colors"
+                >
+                  💡 Show Hint
+                </button>
+                {resumeData && (
+                  <span className="px-3.5 py-1.5 rounded-xl bg-violet-500/10 border border-violet-500/20 text-[10px] font-bold text-violet-300">
+                    📄 Resume Walkthrough
+                  </span>
+                )}
+                <span className="px-3.5 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold text-emerald-300 uppercase">
+                  {adaptiveDifficulty}
+                </span>
+              </div>
+            </div>
+
+            {/* Answer Input area */}
+            <div className="flex-1 rounded-3xl border border-white/[0.08] bg-slate-900/60 p-5 flex flex-col justify-between shadow-2xl min-h-0 relative">
+              <div className="flex-1 flex flex-col min-h-0">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Your Answer</label>
+                <textarea
+                  value={answer}
+                  onChange={e => setAnswer(e.target.value)}
+                  placeholder="Type your answer here..."
+                  className="flex-1 w-full bg-slate-950/40 rounded-2xl border border-white/5 text-sm text-white placeholder-gray-500 p-4 focus:outline-none focus:border-violet-500/50 resize-none font-medium leading-relaxed overflow-y-auto scrollbar-thin"
+                />
+              </div>
+
+              {/* Word / Char counter & Submit buttons */}
+              <div className="flex items-center justify-between border-t border-white/5 pt-4 mt-3 shrink-0">
+                <div className="flex gap-4 text-[10px] text-gray-500 font-bold">
+                  <span>{wordCount} words</span>
+                  <span>{charCount} characters</span>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleSkip}
+                    className="px-4 py-2 rounded-xl bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] text-xs font-bold text-gray-300 transition-colors flex items-center gap-1.5"
+                  >
+                    Skip Question
+                  </button>
+                  <button
+                    onClick={handleSubmitAnswer}
+                    disabled={!answer.trim()}
+                    className="px-6 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-800 disabled:text-gray-500 disabled:border-transparent transition-all text-xs font-bold text-white shadow-lg flex items-center gap-1.5"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Submit Answer</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Tips footer row */}
+            <div className="rounded-2xl border border-white/[0.08] bg-slate-900/60 p-4 flex items-center gap-6 shadow-2xl shrink-0 text-[10px]">
+              <span className="font-black text-violet-300 uppercase tracking-widest">💡 Quick Tips</span>
+              <div className="flex items-center gap-4 flex-wrap text-gray-400 font-bold">
+                <span className="flex items-center gap-1.5">✓ Be specific and concise</span>
+                <span className="flex items-center gap-1.5">✓ Highlight relevant experience</span>
+                <span className="flex items-center gap-1.5">✓ Use real examples from your projects</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right panel: Evaluation criteria + STAR info + Today's summary */}
+          <div className="w-80 bg-slate-900/60 rounded-3xl border border-white/[0.08] p-5 flex flex-col gap-4 overflow-y-auto shrink-0 select-none">
+            {/* 1. Evaluation checklist */}
+            <div className="space-y-2 pb-3 border-b border-white/5">
+              <span className="text-[9px] text-gray-400 font-black uppercase tracking-widest block">AI Feedback Criteria</span>
+              <p className="text-[10px] text-gray-500 font-semibold mb-2">Your answer will be evaluated on:</p>
+              <div className="space-y-2 text-[10px] font-bold text-white">
+                {['Relevance', 'Clarity', 'Depth', 'Structure'].map(item => (
+                  <div key={item} className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 2. STAR method description */}
+            <div className="space-y-2.5 pb-3 border-b border-white/5">
+              <span className="text-[9px] text-gray-400 font-black uppercase tracking-widest block">STAR Method</span>
+              <p className="text-[10px] text-gray-500 font-semibold mb-1">Use STAR method to structure your answers:</p>
+              <div className="grid grid-cols-2 gap-2 text-[9px] font-extrabold">
+                <div className="bg-slate-950/40 p-2 rounded-xl border border-white/5 flex flex-col gap-0.5">
+                  <span className="text-cyan-400 text-xs font-black">S</span>
+                  <span className="text-gray-400 text-[8px] uppercase">Situation</span>
+                </div>
+                <div className="bg-slate-950/40 p-2 rounded-xl border border-white/5 flex flex-col gap-0.5">
+                  <span className="text-emerald-400 text-xs font-black">T</span>
+                  <span className="text-gray-400 text-[8px] uppercase">Task</span>
+                </div>
+                <div className="bg-slate-950/40 p-2 rounded-xl border border-white/5 flex flex-col gap-0.5">
+                  <span className="text-amber-400 text-xs font-black">A</span>
+                  <span className="text-gray-400 text-[8px] uppercase">Action</span>
+                </div>
+                <div className="bg-slate-950/40 p-2 rounded-xl border border-white/5 flex flex-col gap-0.5">
+                  <span className="text-fuchsia-400 text-xs font-black">R</span>
+                  <span className="text-gray-400 text-[8px] uppercase">Result</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Today's Summary */}
+            <div className="space-y-2 flex-1 flex flex-col justify-end">
+              <span className="text-[9px] text-gray-400 font-black uppercase tracking-widest block mb-2">Today's Summary</span>
+              <div className="space-y-2 text-[10px] font-bold text-gray-400">
+                <div className="flex justify-between items-center bg-slate-950/40 p-2.5 rounded-xl border border-white/5">
+                  <span>Questions Answered</span>
+                  <span className="text-white">{currentIndex} / {totalQuestions}</span>
+                </div>
+                <div className="flex justify-between items-center bg-slate-950/40 p-2.5 rounded-xl border border-white/5">
+                  <span>Time Spent</span>
+                  <span className="text-white">{formatTime(totalElapsed)}</span>
+                </div>
+                <div className="flex justify-between items-center bg-slate-950/40 p-2.5 rounded-xl border border-white/5">
+                  <span>Average Time / Q</span>
+                  <span className="text-white">{currentIndex > 0 ? formatTime(Math.round(totalElapsed / currentIndex)) : "00:00"}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // Render the full-screen interview room for BOTH interviewing and evaluating phases.
-  // Previously only rendered for 'interviewing' — so during evaluation the room
-  // would unmount, the sidebar would pop back in, and the layout would shrink.
   if (
     (phase === PHASE.INTERVIEWING || phase === PHASE.EVALUATING) &&
     (interviewFormat === 'video' || interviewFormat === 'voice')
   ) {
     return (
       <AIInterviewerRoom
+        interviewFormat={interviewFormat}
+        questions={questions}
         cameraPreviewRef={cameraPreviewRef}
         currentQuestion={currentQuestion}
         interviewerName={interviewerName}

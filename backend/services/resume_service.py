@@ -133,152 +133,63 @@ class ResumeService:
         try:
             from ai.gemini_service import GeminiService
             gemini = GeminiService()
-            prompt = f"""You are a senior Google UX Engineer, Senior AI Engineer, ATS expert, and Product Designer.
-            Evaluate the following resume content:
-            ---
-            {text}
-            ---
-            Generate a deep, comprehensive career analysis report.
-            Format your response strictly as a JSON object with the exact keys:
-            {{
-              "coach_report": {{
-                "summary": "Professional summary paragraph...",
-                "strengths": ["Strength 1...", "Strength 2...", ...],
-                "weaknesses": ["Weakness 1...", "Weakness 2...", ...],
-                "missing_keywords": ["Keyword 1...", "Keyword 2...", ...],
-                "missing_sections": ["Section 1...", ...],
-                "grammar_suggestions": ["Grammar suggestion 1...", ...],
-                "actionable_improvements": ["Improvement 1...", ...],
-                "current_score": 70,
-                "potential_score": 89,
-                "next_steps": ["Step 1...", "Step 2...", ...]
-              }},
-              "heatmap": {{
-                "name": {{
-                  "status": "excellent|needs_improvement|weak_or_missing",
-                  "score": 95,
-                  "feedback": "Feedback details...",
-                  "recruiter_view": "Recruiter view...",
-                  "ats_view": "ATS view...",
-                  "suggested_rewrite": "Suggested rewrite or N/A"
-                }},
-                "contact": {{
-                  "status": "excellent|needs_improvement|weak_or_missing",
-                  "score": 80,
-                  "feedback": "Feedback details...",
-                  "recruiter_view": "Recruiter view...",
-                  "ats_view": "ATS view...",
-                  "suggested_rewrite": "Suggested rewrite or N/A"
-                }},
-                "summary": {{
-                  "status": "excellent|needs_improvement|weak_or_missing",
-                  "score": 75,
-                  "feedback": "Feedback details...",
-                  "recruiter_view": "Recruiter view...",
-                  "ats_view": "ATS view...",
-                  "suggested_rewrite": "Suggested rewrite or N/A"
-                }},
-                "skills": {{
-                  "status": "excellent|needs_improvement|weak_or_missing",
-                  "score": 90,
-                  "feedback": "Feedback details...",
-                  "recruiter_view": "Recruiter view...",
-                  "ats_view": "ATS view...",
-                  "suggested_rewrite": "Suggested rewrite or N/A"
-                }},
-                "experience": {{
-                  "status": "excellent|needs_improvement|weak_or_missing",
-                  "score": 70,
-                  "feedback": "Feedback details...",
-                  "recruiter_view": "Recruiter view...",
-                  "ats_view": "ATS view...",
-                  "suggested_rewrite": "Suggested rewrite or N/A"
-                }},
-                "projects": {{
-                  "status": "excellent|needs_improvement|weak_or_missing",
-                  "score": 62,
-                  "feedback": "Feedback details...",
-                  "recruiter_view": "Recruiter view...",
-                  "ats_view": "ATS view...",
-                  "suggested_rewrite": "Suggested rewrite or N/A"
-                }},
-                "education": {{
-                  "status": "excellent|needs_improvement|weak_or_missing",
-                  "score": 85,
-                  "feedback": "Feedback details...",
-                  "recruiter_view": "Recruiter view...",
-                  "ats_view": "ATS view...",
-                  "suggested_rewrite": "Suggested rewrite or N/A"
-                }},
-                "certifications": {{
-                  "status": "excellent|needs_improvement|weak_or_missing",
-                  "score": 50,
-                  "feedback": "Feedback details...",
-                  "recruiter_view": "Recruiter view...",
-                  "ats_view": "ATS view...",
-                  "suggested_rewrite": "Suggested rewrite or N/A"
-                }},
-                "achievements": {{
-                  "status": "excellent|needs_improvement|weak_or_missing",
-                  "score": 40,
-                  "feedback": "Feedback details...",
-                  "recruiter_view": "Recruiter view...",
-                  "ats_view": "ATS view...",
-                  "suggested_rewrite": "Suggested rewrite or N/A"
-                }},
-                "keywords": {{
-                  "status": "excellent|needs_improvement|weak_or_missing",
-                  "score": 60,
-                  "feedback": "Feedback details...",
-                  "recruiter_view": "Recruiter view...",
-                  "ats_view": "ATS view...",
-                  "suggested_rewrite": "Suggested rewrite or N/A"
-                }},
-                "formatting": {{
-                  "status": "excellent|needs_improvement|weak_or_missing",
-                  "score": 80,
-                  "feedback": "Feedback details...",
-                  "recruiter_view": "Recruiter view...",
-                  "ats_view": "ATS view...",
-                  "suggested_rewrite": "Suggested rewrite or N/A"
-                }}
-              }},
-              "interview_prep": {{
-                "estimated_duration": "45 Minutes",
-                "company_styles": ["Google", "Amazon", "Microsoft", "TCS"],
-                "questions": [
-                  {{
-                    "text": "How did you design the caching architecture in your recent project, and what were the trade-offs?",
-                    "category": "technical|hr|behavioral|project|system_design|coding|confidence",
-                    "difficulty": "easy|medium|hard",
-                    "expected_answer": "Explain Cache-Aside pattern, Cache invalidation via TTL, and LRU eviction policy.",
-                    "key_concepts": ["Cache-Aside", "TTL", "LRU Eviction"],
-                    "common_mistakes": ["Lacking explanation of cache invalidation or memory limits."]
-                  }},
-                  ...
-                ]
-              }},
-              "career_roadmap": {{
-                "current_level": "Beginner|Intermediate|Advanced",
-                "suitable_roles": ["Frontend Developer", "Backend Developer", "Full Stack Developer", "AI Engineer", "Data Analyst", "Python Developer"],
-                "salary_range": "$70k - $95k or local currency equivalent",
-                "missing_skills": ["Skill 1", "Skill 2"],
-                "learning_path": [
-                  {{
-                    "week": "Week 1",
-                    "topic": "React Hooks",
-                    "detail": "Learn useState, useEffect, and custom hooks."
-                  }},
-                  ...
-                ],
-                "recommended_certifications": ["Cert 1", "Cert 2"],
-                "job_readiness_percentage": 74,
-                "estimated_time": "3 Months"
-              }}
-            }}
-            Ensure the JSON output is valid, fully closed, and contains no comments or outer markdown text.
-            """
-            raw = gemini.generate_content(prompt)
+            prompt = f"""You are an ATS expert and career coach. Analyze this resume and return ONLY a JSON object. Be extremely concise — keep every string under 15 words. Limit all arrays to max 3 items.
+Resume:
+---
+{text[:3000]}
+---
+Return exactly this JSON structure (no markdown, no extra text), replacing the placeholders (like score_0_to_100, status_excellent_or_needs_improvement_or_weak_or_missing) with actual calculated, realistic values based on the resume:
+{{
+  "coach_report": {{
+    "summary": "1-sentence summary of the candidate's profile",
+    "strengths": ["strength1", "strength2", "strength3"],
+    "weaknesses": ["weakness1", "weakness2", "weakness3"],
+    "missing_keywords": ["kw1", "kw2", "kw3"],
+    "missing_sections": ["sec1", "sec2"],
+    "grammar_suggestions": ["suggestion1"],
+    "actionable_improvements": ["action1", "action2", "action3"],
+    "current_score": current_score_0_to_100,
+    "potential_score": potential_score_0_to_100,
+    "next_steps": ["step1", "step2"]
+  }},
+  "heatmap": {{
+    "name": {{"status": "status_excellent_or_needs_improvement_or_weak_or_missing", "score": score_0_to_100, "feedback": "Brief feedback."}},
+    "contact": {{"status": "status_excellent_or_needs_improvement_or_weak_or_missing", "score": score_0_to_100, "feedback": "Brief feedback."}},
+    "summary": {{"status": "status_excellent_or_needs_improvement_or_weak_or_missing", "score": score_0_to_100, "feedback": "Brief feedback."}},
+    "skills": {{"status": "status_excellent_or_needs_improvement_or_weak_or_missing", "score": score_0_to_100, "feedback": "Brief feedback."}},
+    "experience": {{"status": "status_excellent_or_needs_improvement_or_weak_or_missing", "score": score_0_to_100, "feedback": "Brief feedback."}},
+    "projects": {{"status": "status_excellent_or_needs_improvement_or_weak_or_missing", "score": score_0_to_100, "feedback": "Brief feedback."}},
+    "education": {{"status": "status_excellent_or_needs_improvement_or_weak_or_missing", "score": score_0_to_100, "feedback": "Brief feedback."}},
+    "certifications": {{"status": "status_excellent_or_needs_improvement_or_weak_or_missing", "score": score_0_to_100, "feedback": "Brief feedback."}},
+    "achievements": {{"status": "status_excellent_or_needs_improvement_or_weak_or_missing", "score": score_0_to_100, "feedback": "Brief feedback."}},
+    "keywords": {{"status": "status_excellent_or_needs_improvement_or_weak_or_missing", "score": score_0_to_100, "feedback": "Brief feedback."}},
+    "formatting": {{"status": "status_excellent_or_needs_improvement_or_weak_or_missing", "score": score_0_to_100, "feedback": "Brief feedback."}}
+  }},
+  "interview_prep": {{
+    "estimated_duration": "30 Minutes",
+    "company_styles": ["Google", "Amazon", "Microsoft"],
+    "questions": [
+      {{"text": "Tailored question text?", "category": "technical", "difficulty": "medium", "common_mistakes": ["mistake1"]}},
+      {{"text": "Tailored question text?", "category": "behavioral", "difficulty": "easy", "common_mistakes": ["mistake1"]}},
+      {{"text": "Tailored question text?", "category": "project", "difficulty": "hard", "common_mistakes": ["mistake1"]}}
+    ]
+  }},
+  "career_roadmap": {{
+    "current_level": "Beginner_or_Intermediate_or_Advanced",
+    "suitable_roles": ["Role1", "Role2", "Role3"],
+    "salary_range": "Salary range estimate",
+    "missing_skills": ["skill1", "skill2"],
+    "learning_path": [
+      {{"week": "Week 1", "topic": "Topic name", "detail": "Short detail."}},
+      {{"week": "Week 2", "topic": "Topic name", "detail": "Short detail."}},
+      {{"week": "Week 3", "topic": "Topic name", "detail": "Short detail."}}
+    ],
+    "recommended_certifications": ["Cert1", "Cert2"],
+    "job_readiness_percentage": readiness_percentage_0_to_100,
+    "estimated_time": "Months_estimate"
+  }}
+}}"""
+            raw = gemini.generate_content(prompt, max_tokens=1800)
             if raw:
                 import json
                 cleaned = clean_json(raw)
@@ -287,76 +198,126 @@ class ResumeService:
             logger.error(f"Deep AI analysis failed: {e}")
 
         if not deep_analysis:
+            # Build a dynamic fallback using the ACTUAL extracted resume data so
+            # each resume shows different values even when AI providers are on cooldown.
+            _has_skills    = bool(skills.get("all"))
+            _has_exp       = bool(experience.get("years") or experience.get("titles"))
+            _has_edu       = bool(education)
+            _has_contact   = bool(contact.get("email") or contact.get("phone"))
+            _has_github    = bool(contact.get("github"))
+            _skill_list    = skills.get("all", [])[:6]
+            _exp_level     = experience.get("level", "entry")
+            _exp_years     = experience.get("years")
+            _top_edu       = education[0] if education else "Degree not found"
+            _base_score    = score.get("percentage", 60) if isinstance(score, dict) else int(score or 60)
+
+            # Heatmap scores derived from actual extracted fields
+            _exp_score = 80 if _exp_years and _exp_years >= 3 else (60 if _has_exp else 35)
+            _skills_score = min(95, 50 + len(_skill_list) * 7)
+            _edu_score = 90 if _has_edu else 45
+            _contact_score = 95 if _has_contact else 55
+            _github_score = 85 if _has_github else 40
+
+            _missing_kws = [k for k in ["Docker", "AWS", "REST APIs", "CI/CD", "Unit Testing", "Kubernetes"]
+                            if k.lower() not in " ".join(_skill_list).lower()][:4]
+            _missing_secs = []
+            if not _has_exp:      _missing_secs.append("Work Experience")
+            if not _has_github:   _missing_secs.append("GitHub Portfolio")
+            if len(_skill_list) < 4: _missing_secs.append("Skills Section")
+
+            _roadmap_roles = {
+                "senior": ["Senior Software Engineer", "Tech Lead", "Solutions Architect"],
+                "mid":    ["Software Engineer", "Full Stack Developer", "Backend Developer"],
+                "junior": ["Junior Developer", "Associate Engineer", "Frontend Developer"],
+                "entry":  ["Junior Developer", "Trainee Engineer", "Intern"],
+            }.get(_exp_level, ["Software Engineer", "Developer", "Engineer"])
+
+            _readiness = min(95, max(40, _base_score))
+
             deep_analysis = {
                 "coach_report": {
-                    "summary": "Your resume demonstrates strong technical knowledge. However, the lack of quantified achievements and professional experience reduces ATS performance.",
-                    "strengths": ["Strong technical stack", "Multiple projects", "Clean formatting"],
-                    "weaknesses": ["Missing measurable achievements", "Weak project descriptions", "No internships", "No certifications"],
-                    "missing_keywords": ["Docker", "AWS", "REST APIs", "Unit Testing"],
-                    "missing_sections": ["Certifications", "Achievements"],
-                    "grammar_suggestions": ["Ensure active verbs are used in all project descriptions."],
-                    "actionable_improvements": ["Add internship experience", "Improve project descriptions", "Add GitHub statistics", "Add quantified impact"],
-                    "current_score": 70,
-                    "potential_score": 89,
-                    "next_steps": ["Start a personalized mock interview based on this resume.", "Add quantitative metrics to your projects."]
+                    "summary": f"Resume shows {'strong' if _base_score >= 75 else 'moderate'} technical profile with {len(_skill_list)} detected skills and {'solid' if _has_exp else 'limited'} work experience.",
+                    "strengths": (
+                        ([f"Strong technical skills: {', '.join(_skill_list[:3])}"] if _skill_list else []) +
+                        (["Verified education credentials"] if _has_edu else []) +
+                        (["GitHub portfolio present"] if _has_github else ["Clean contact information"] if _has_contact else [])
+                    )[:3] or ["Technical foundation present"],
+                    "weaknesses": (
+                        ([] if _has_exp else ["No professional work experience listed"]) +
+                        ([] if _has_github else ["No GitHub or portfolio link"]) +
+                        (["Missing key DevOps/cloud skills"] if _missing_kws else [])
+                    )[:3] or ["Consider adding quantified achievements"],
+                    "missing_keywords": _missing_kws,
+                    "missing_sections": _missing_secs or ["Certifications"],
+                    "grammar_suggestions": ["Use active verbs in all project and experience bullet points."],
+                    "actionable_improvements": [
+                        "Add measurable impact metrics to each project.",
+                        "Link your GitHub profile and highlight top repositories.",
+                        "Obtain at least one cloud certification (AWS/GCP).",
+                    ],
+                    "current_score": _base_score,
+                    "potential_score": min(98, _base_score + 18),
+                    "next_steps": [
+                        "Start a mock interview tailored to your detected skills.",
+                        "Add quantitative results to your project descriptions.",
+                    ]
                 },
                 "heatmap": {
-                    "name": {"status": "excellent", "score": 95, "feedback": "Name is clear and correctly formatted.", "recruiter_view": "Perfect start.", "ats_view": "Header parsed cleanly.", "suggested_rewrite": "N/A"},
-                    "contact": {"status": "excellent", "score": 90, "feedback": "Contact details and LinkedIn are present.", "recruiter_view": "Easy to reach.", "ats_view": "Email and location found.", "suggested_rewrite": "N/A"},
-                    "summary": {"status": "needs_improvement", "score": 60, "feedback": "Summary lacks quantified impact and target keywords.", "recruiter_view": "A bit generic.", "ats_view": "Lacks high-impact keywords.", "suggested_rewrite": "Results-oriented Software Engineer with 2+ years of experience building scalable Web Apps..."},
-                    "skills": {"status": "excellent", "score": 90, "feedback": "Core technical stack is highly visible.", "recruiter_view": "Strong languages match.", "ats_view": "High keyword density for programming languages.", "suggested_rewrite": "N/A"},
-                    "experience": {"status": "weak_or_missing", "score": 40, "feedback": "No professional work history or internships listed.", "recruiter_view": "Lacks industry background.", "ats_view": "No experience duration parsed.", "suggested_rewrite": "Add any freelance, part-time, or internship history using bullet points."},
-                    "projects": {"status": "needs_improvement", "score": 62, "feedback": "Project descriptions lack measurable results or scaling details.", "recruiter_view": "Hard to judge complexity without metrics.", "ats_view": "Needs key technologies matched with outcomes.", "suggested_rewrite": "Optimized database query performance by 40% and implemented Redis caching for active read traffic."},
-                    "education": {"status": "excellent", "score": 95, "feedback": "Degree and institution details are clear.", "recruiter_view": "Meets educational requirements.", "ats_view": "Education section cleanly indexed.", "suggested_rewrite": "N/A"},
-                    "certifications": {"status": "weak_or_missing", "score": 30, "feedback": "No professional cloud or development certifications.", "recruiter_view": "Consider adding AWS or Google Cloud certs.", "ats_view": "Zero certification keywords.", "suggested_rewrite": "AWS Certified Cloud Practitioner (2026)"},
-                    "achievements": {"status": "weak_or_missing", "score": 30, "feedback": "Lacks a dedicated achievements or competitive programming section.", "recruiter_view": "Misses extracurricular signals.", "ats_view": "No achievement keywords.", "suggested_rewrite": "Secured Top 5% rank in Hackathons or similar coding competitions."},
-                    "keywords": {"status": "needs_improvement", "score": 60, "feedback": "Missing key DevOps and REST API terms.", "recruiter_view": "Stack feels slightly incomplete.", "ats_view": "DevOps keywords not found.", "suggested_rewrite": "N/A"},
-                    "formatting": {"status": "excellent", "score": 85, "feedback": "Clean structure, standard font, easy to parse.", "recruiter_view": "Scans very well visually.", "ats_view": "Tables and layouts are parsable.", "suggested_rewrite": "N/A"}
+                    "name":           {"status": "excellent",          "score": 95,           "feedback": "Name is clearly visible and correctly formatted.", "recruiter_view": "Perfect first impression.", "ats_view": "Name parsed cleanly.", "suggested_rewrite": "N/A"},
+                    "contact":        {"status": "excellent" if _contact_score >= 80 else "needs_improvement", "score": _contact_score, "feedback": "Contact info present." if _has_contact else "Email or phone missing.", "recruiter_view": "Easy to reach." if _has_contact else "Hard to contact candidate.", "ats_view": "Contact fields indexed." if _has_contact else "No contact fields found.", "suggested_rewrite": "N/A"},
+                    "summary":        {"status": "needs_improvement",  "score": 65,           "feedback": "Summary section needs more targeted keywords and impact statements.", "recruiter_view": "Reads as generic.", "ats_view": "Lacks high-impact job keywords.", "suggested_rewrite": "Results-driven engineer with proven track record in " + (", ".join(_skill_list[:2]) if _skill_list else "software development") + "."},
+                    "skills":         {"status": "excellent" if _skills_score >= 75 else "needs_improvement", "score": _skills_score, "feedback": f"{len(_skill_list)} skills detected: {', '.join(_skill_list[:3])}." if _skill_list else "No skills section found.", "recruiter_view": "Good technical stack." if _skill_list else "Skills section empty.", "ats_view": "Keyword density adequate." if _skill_list else "No skill keywords.", "suggested_rewrite": "N/A"},
+                    "experience":     {"status": "excellent" if _exp_score >= 75 else ("needs_improvement" if _exp_score >= 50 else "weak_or_missing"), "score": _exp_score, "feedback": f"{_exp_years} years experience detected." if _exp_years else ("Job titles found but no duration." if _has_exp else "No work experience listed."), "recruiter_view": "Adequate experience." if _has_exp else "No work history — flag for screening.", "ats_view": "Experience duration parsed." if _exp_years else "No experience duration found.", "suggested_rewrite": "Add freelance, internship, or part-time roles with dates." if not _has_exp else "N/A"},
+                    "projects":       {"status": "needs_improvement",  "score": 62,           "feedback": "Projects lack measurable outcomes and impact metrics.", "recruiter_view": "Hard to gauge complexity without numbers.", "ats_view": "Project keywords present but no metrics.", "suggested_rewrite": "Reduced page load time by 40% using lazy loading and code splitting."},
+                    "education":      {"status": "excellent" if _edu_score >= 80 else "needs_improvement", "score": _edu_score, "feedback": _top_edu if _has_edu else "Education section not detected.", "recruiter_view": "Meets requirements." if _has_edu else "No education found.", "ats_view": "Education indexed." if _has_edu else "Missing education keywords.", "suggested_rewrite": "N/A"},
+                    "certifications": {"status": "weak_or_missing",    "score": 35,           "feedback": "No professional certifications found.", "recruiter_view": "Add cloud or tech certs.", "ats_view": "Zero certification keywords.", "suggested_rewrite": "AWS Certified Cloud Practitioner (2025)"},
+                    "achievements":   {"status": "weak_or_missing",    "score": 35,           "feedback": "No dedicated achievements or awards section.", "recruiter_view": "Misses extracurricular signals.", "ats_view": "No achievement keywords found.", "suggested_rewrite": "Top 10% in university batch or hackathon finalist."},
+                    "keywords":       {"status": "needs_improvement" if _missing_kws else "excellent", "score": 60 if _missing_kws else 85, "feedback": f"Missing: {', '.join(_missing_kws)}." if _missing_kws else "Good keyword coverage.", "recruiter_view": "Needs more job-specific terms." if _missing_kws else "Strong keyword match.", "ats_view": "Some JD keywords missing." if _missing_kws else "Good ATS keyword density.", "suggested_rewrite": "N/A"},
+                    "formatting":     {"status": "excellent",          "score": 85,           "feedback": "Clean structure and easy to parse.", "recruiter_view": "Scans well visually.", "ats_view": "Layout is ATS-friendly.", "suggested_rewrite": "N/A"},
                 },
                 "interview_prep": {
-                    "estimated_duration": "45 Minutes",
-                    "company_styles": ["Google", "Amazon", "Microsoft", "TCS"],
+                    "estimated_duration": "30 Minutes",
+                    "company_styles": ["Google", "Amazon", "Microsoft"],
                     "questions": [
                         {
-                            "text": "How did you design the caching architecture in your recent project, and what were the trade-offs?",
+                            "text": f"Walk me through your experience with {_skill_list[0] if _skill_list else 'your primary technology'} and give a real project example.",
                             "category": "technical",
                             "difficulty": "medium",
-                            "expected_answer": "Explain Cache-Aside pattern, Cache invalidation via TTL, and LRU eviction policy.",
-                            "key_concepts": ["Cache-Aside", "TTL", "LRU Eviction"],
-                            "common_mistakes": ["Lacking explanation of cache invalidation or memory limits."]
+                            "expected_answer": "Use STAR method. Mention specific libraries, challenges, and outcomes.",
+                            "key_concepts": _skill_list[:3] or ["Core concepts"],
+                            "common_mistakes": ["Being too vague without a concrete example."]
                         },
                         {
-                            "text": "Tell me about a time you had to optimize a slow database query.",
+                            "text": "Tell me about a project where you had to solve a hard technical problem. What was your approach?",
                             "category": "project",
                             "difficulty": "medium",
-                            "expected_answer": "Use STAR method. Detail adding indexes, query rewriting, or explain plans.",
-                            "key_concepts": ["Indexes", "Explain Plan", "SQL query optimization"],
-                            "common_mistakes": ["Not mentioning explain plans or specific query changes."]
+                            "expected_answer": "Describe problem identification, solution design, implementation, and measurable result.",
+                            "key_concepts": ["Problem solving", "System design", "Trade-offs"],
+                            "common_mistakes": ["Focusing on the task, not the impact or result."]
                         },
                         {
-                            "text": "How do you handle disagreement with a tech lead or senior developer?",
+                            "text": "How do you handle disagreement with a team member or tech lead?",
                             "category": "behavioral",
                             "difficulty": "easy",
-                            "expected_answer": "Focus on active listening, collaborative data collection, and objective comparison.",
-                            "key_concepts": ["Active Listening", "Objectivity", "Collaboration"],
-                            "common_mistakes": ["Sounding defensive or avoiding resolution details."]
+                            "expected_answer": "Show collaboration, active listening, and data-driven resolution.",
+                            "key_concepts": ["Communication", "Collaboration", "Objectivity"],
+                            "common_mistakes": ["Sounding defensive or avoiding conflict detail."]
                         }
                     ]
                 },
                 "career_roadmap": {
-                    "current_level": "Intermediate",
-                    "suitable_roles": ["Frontend Developer", "Backend Developer", "Full Stack Developer"],
-                    "salary_range": "$75k - $95k",
-                    "missing_skills": ["Docker", "AWS", "REST APIs", "Unit Testing"],
+                    "current_level": _exp_level.capitalize(),
+                    "suitable_roles": _roadmap_roles,
+                    "salary_range": "INR 4-10 LPA" if _exp_level in ["entry", "junior"] else "INR 10-25 LPA",
+                    "missing_skills": _missing_kws or ["Cloud Platforms", "System Design"],
                     "learning_path": [
-                        {"week": "Week 1", "topic": "React Hooks & State", "detail": "Master dynamic state rendering and custom hooks."},
-                        {"week": "Week 2", "topic": "Docker & Containerization", "detail": "Learn to containerize Python/Node apps."},
-                        {"week": "Week 3", "topic": "REST APIs & Database Optimization", "detail": "Design REST APIs with SQLite/Postgres."},
-                        {"week": "Week 4", "topic": "System Design Fundamentals", "detail": "Study load balancing, caching, and scalability."}
+                        {"week": "Week 1", "topic": _missing_kws[0] if _missing_kws else "System Design", "detail": f"Master {'containers and deployment' if 'Docker' in (_missing_kws or []) else 'fundamentals and best practices'}."},
+                        {"week": "Week 2", "topic": _missing_kws[1] if len(_missing_kws) > 1 else "Cloud Fundamentals", "detail": "Build hands-on projects and push to GitHub."},
+                        {"week": "Week 3", "topic": "Mock Interviews", "detail": "Practice 3 full mock interviews focusing on your weak areas."},
                     ],
                     "recommended_certifications": ["AWS Certified Cloud Practitioner", "Google Associate Cloud Engineer"],
-                    "job_readiness_percentage": 74,
-                    "estimated_time": "3 Months"
+                    "job_readiness_percentage": _readiness,
+                    "estimated_time": "2 Months" if _base_score >= 70 else "3 Months"
                 }
             }
 

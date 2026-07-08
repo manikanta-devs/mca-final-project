@@ -89,7 +89,7 @@ def start_interview():
         if not questions:
             return jsonify({"error": "No questions provided"}), 400
 
-        interview_service.create_session(
+        session = interview_service.create_session(
             session_id=session_id,
             questions=questions,
             resume_data=resume_data,
@@ -100,6 +100,8 @@ def start_interview():
             panel_mode=panel_mode,
             username=request.username,
         )
+        session["interviewer_persona"] = data.get("interviewer_persona", "sarah")
+        interview_service.save_session(session_id, session)
 
         first_question = questions[0] if questions else None
 
@@ -151,7 +153,26 @@ def submit_answer():
         if question_index < 0 or question_index >= len(session["questions"]):
             return jsonify({"error": "Question index out of range"}), 400
 
-        current_question = session["questions"][question_index]
+        # Interviewer name & gender setup
+        persona = session.get("interviewer_persona", "sarah")
+        interviewer_name = "Marcus Rodriguez" if persona == "marcus" else "Sarah Chen"
+
+        # Determine current question (blueprint question vs active follow-up question)
+        active_follow_up = session.get("active_follow_up_text")
+        if active_follow_up:
+            current_question = {
+                "text": active_follow_up,
+                "category": "Follow-Up",
+                "type": "technical",
+                "difficulty": session.get("difficulty", "medium"),
+            }
+        else:
+            current_question = session["questions"][question_index]
+
+        # Initialize and update chat history for live context memory
+        chat_history = session.setdefault("chat_history", [])
+        chat_history.append({"role": "interviewer", "text": current_question["text"]})
+        chat_history.append({"role": "candidate", "text": answer})
 
         # Collect previous scores for adaptive difficulty
         previous_scores = []
@@ -160,7 +181,7 @@ def submit_answer():
             if ev.get("overall_score"):
                 previous_scores.append(ev["overall_score"])
 
-        # Evaluate the answer with previous scores for adaptive difficulty
+        # Evaluate the answer with live context memory
         evaluation = answer_evaluator.evaluate(
             question=current_question,
             answer=answer,
@@ -168,6 +189,9 @@ def submit_answer():
             voice_metrics=voice_metrics,
             emotion_metrics=emotion_metrics,
             previous_scores=previous_scores,
+            chat_history=chat_history,
+            resume_data=session.get("resume_data", {}),
+            interviewer_name=interviewer_name,
         )
 
         # Store the answer + evaluation
@@ -182,17 +206,43 @@ def submit_answer():
         interview_service.add_answer(session_id, new_answer)
         session.setdefault("answers", []).append(new_answer)
 
+        # Determine next question using the follow-up engine
+        follow_up_prompt = evaluation.get("follow_up_prompt", "").strip()
+        follow_up_count = session.get("follow_up_count", 0)
 
-        # Determine next question — use pre-generated questions directly for speed
-        # (Adaptive regeneration removed: was adding 6-14s of extra AI calls per answer)
-        next_index = question_index + 1
-        total = len(session["questions"])
-        is_complete = next_index >= total
+        # Check if we should ask a dynamic follow-up question (cap at 2 per blueprint stage)
+        is_greeting_or_short = evaluation.get("overall_score", 0) == 0
+        if follow_up_prompt and follow_up_prompt.lower() != "none" and follow_up_count < 2 and not is_greeting_or_short:
+            session["active_follow_up_text"] = follow_up_prompt
+            session["follow_up_count"] = follow_up_count + 1
+            
+            next_question = {
+                "id": current_question.get("id", question_index + 1),
+                "text": follow_up_prompt,
+                "category": current_question.get("category", "Follow-Up"),
+                "type": current_question.get("type", "technical"),
+                "difficulty": current_question.get("difficulty", "medium"),
+            }
+            next_index = question_index
+            is_complete = False
+        else:
+            # Advance to the next blueprint question
+            session["active_follow_up_text"] = None
+            session["follow_up_count"] = 0
+            
+            next_index = question_index + 1
+            total = len(session["questions"])
+            is_complete = next_index >= total
 
-        next_question = None
-        if not is_complete:
-            next_question = session["questions"][next_index]
+            next_question = None
+            if not is_complete:
+                next_question = session["questions"][next_index]
 
+        # Save session updates back to DB
+        interview_service.save_session(session_id, session)
+
+        total_blueprint = len(session["questions"])
+        progress_index = min(next_index, total_blueprint)
 
         return (
             jsonify(
@@ -202,7 +252,7 @@ def submit_answer():
                     "next_question": next_question,
                     "next_index": next_index,
                     "is_complete": is_complete,
-                    "progress": round((next_index / total) * 100),
+                    "progress": round((progress_index / total_blueprint) * 100),
                     "difficulty_adjustment": evaluation.get(
                         "difficulty_adjustment", "maintain"
                     ),
@@ -236,14 +286,35 @@ def generate_onboarding_response():
         if not session:
             return jsonify({"error": "Session not found"}), 404
 
-        # Use instant responses for onboarding phases — no AI call needed
-        # (AI call was adding 3-7s per phase transition, making onboarding feel laggy)
-        instant_responses = {
-            "greet_mic": "Wonderful, glad the connection is working well. How has your day been so far?",
-            "small_talk": "That's great to hear. Before we begin, could you please introduce yourself and tell me about your background?",
-            "identity_confirm": "Thank you for sharing that. I'm excited to interview you today. Let's get started with the core questions.",
+        persona = session.get("interviewer_persona", "sarah")
+        interviewer_name = "Marcus Rodriguez" if persona == "marcus" else "Sarah Chen"
+
+        # Fetch first question from blueprint for transition
+        first_question = session["questions"][0]["text"] if session.get("questions") else None
+
+        response_text = answer_evaluator.generate_onboarding_response(
+            current_phase=current_phase,
+            answer=answer,
+            candidate_name=session.get("candidate_name"),
+            resume_data=session.get("resume_data"),
+            first_question=first_question,
+            interviewer_name=interviewer_name,
+        )
+
+        # Store onboarding prompts/responses in chat history for seamless memory context
+        chat_history = session.setdefault("chat_history", [])
+        
+        onboarding_questions = {
+            "greet_mic": f"Hello, good morning. My name is {interviewer_name}. I'll be conducting today's interview. Before we begin, can you hear and see me clearly?",
+            "small_talk": "Glad the connection is working. How has your day been so far?",
+            "identity_confirm": "Before we begin, could you please introduce yourself and walk me through your background?",
         }
-        response_text = instant_responses.get(current_phase, "Perfect. Let's move forward.")
+        
+        asked_q = onboarding_questions.get(current_phase, "Hello.")
+        chat_history.append({"role": "interviewer", "text": asked_q})
+        chat_history.append({"role": "candidate", "text": answer})
+
+        interview_service.save_session(session_id, session)
 
         return jsonify({
             "success": True,
