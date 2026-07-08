@@ -291,23 +291,28 @@ Keep the response brief (maximum 35 words total) and speak directly to the candi
         elif persona_id == "technical_lead":
             persona_context = "\nYou are evaluating as the 'Technical Lead'. Your feedback should be direct, analytical, and focused on architectural patterns, code quality, and best practices."
 
-        voice_context = ""
-        if voice_metrics:
-            voice_context = f"""
+        # Filter metrics to only include necessary keys to minimize token count
+        clean_voice = None
+        if isinstance(voice_metrics, dict):
+            clean_voice = {
+                "speaking_pace_wpm": voice_metrics.get("speaking_pace_wpm"),
+                "filler_count": voice_metrics.get("filler_count"),
+                "filler_ratio": voice_metrics.get("filler_ratio"),
+                "delivery_score": voice_metrics.get("delivery_score")
+            }
 
-Voice Interview Metrics:
-{voice_metrics}
+        clean_emotion = None
+        if isinstance(emotion_metrics, dict):
+            clean_emotion = {
+                "primary_emotion": emotion_metrics.get("primary_emotion"),
+                "engagement_score": emotion_metrics.get("engagement_score"),
+                "eye_contact_score": emotion_metrics.get("eye_contact_score"),
+                "posture_score": emotion_metrics.get("posture_score"),
+                "posture_label": emotion_metrics.get("posture_label")
+            }
 
-Use the delivery signals to inform confidence, clarity, pacing, and speaking style."""
-
-        emotion_context = ""
-        if emotion_metrics:
-            emotion_context = f"""
-
-Video/Emotion Coaching Signals:
-{emotion_metrics}
-
-Use these browser-derived coaching signals to inform eye contact, engagement, and composure feedback. Do not treat them as medical or psychological diagnosis."""
+        voice_context = f"\nVoice Interview Metrics: {clean_voice}" if clean_voice else ""
+        emotion_context = f"\nVideo/Emotion Coaching Signals: {clean_emotion}" if clean_emotion else ""
 
         adaptive_context = ""
         if previous_scores:
@@ -380,7 +385,7 @@ Return a JSON object with these exact fields:
   "posture_label": "<Good|Slouched|Leaning Left|Leaning Right>",
   "emotion_feedback": "<short constructive feedback on camera presence, eye contact, and posture>",
   "sentiment": "positive" | "neutral" | "negative" (must be "positive" if overall_score >= 75, "neutral" if 45-74, "negative" if < 45),
-  "interviewer_response": "<CRITICAL: A natural, spoken 1-2 sentence HR response you say OUT LOUD to the candidate after hearing their answer. Sound like a real experienced Indian/international HR manager on a video call. If answer was good, say something warm and specific like 'That is a great point about X, good depth there.' If it was weak, be encouraging but honest like 'I see, interesting perspective. Let us explore that further.' NEVER say generic phrases like Let us move on. Make it feel like a real conversation. Max 30 words.>"
+  "interviewer_response": "<A warm, natural 1-2 sentence spoken HR response directly to the candidate about their answer. No generic transitions. Max 25 words.>"
 }}
 
 Be fair but honest. If the answer is very short or vague, score accordingly."""
