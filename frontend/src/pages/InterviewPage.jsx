@@ -1157,15 +1157,27 @@ export default function InterviewPage() {
     utterance.rate = voiceProfile.rate
     utterance.pitch = voiceProfile.pitch
 
-    utterance.onstart = () => setIsInterviewerSpeaking(true)
+    utterance.onstart = () => {
+      setIsInterviewerSpeaking(true)
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getAudioTracks().forEach(t => { t.enabled = false })
+      }
+    }
     utterance.onend = () => {
       setIsInterviewerSpeaking(false)
-      // Resume listening
-      startVoiceCapture().catch(() => {})
-      lastSpeechTimeRef.current = Date.now()
+      setTimeout(() => {
+        if (mediaStreamRef.current && micEnabled) {
+          mediaStreamRef.current.getAudioTracks().forEach(t => { t.enabled = true })
+        }
+        startVoiceCapture().catch(() => {})
+        lastSpeechTimeRef.current = Date.now()
+      }, 500)
     }
     utterance.onerror = () => {
       setIsInterviewerSpeaking(false)
+      if (mediaStreamRef.current && micEnabled) {
+        mediaStreamRef.current.getAudioTracks().forEach(t => { t.enabled = true })
+      }
       startVoiceCapture().catch(() => {})
       lastSpeechTimeRef.current = Date.now()
     }
@@ -1197,13 +1209,26 @@ export default function InterviewPage() {
     utterance.rate = voiceProfile.rate
     utterance.pitch = voiceProfile.pitch
 
-    utterance.onstart = () => setIsInterviewerSpeaking(true)
+    utterance.onstart = () => {
+      setIsInterviewerSpeaking(true)
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getAudioTracks().forEach(t => { t.enabled = false })
+      }
+    }
     utterance.onend = () => {
       setIsInterviewerSpeaking(false)
-      handleSkip()
+      setTimeout(() => {
+        if (mediaStreamRef.current && micEnabled) {
+          mediaStreamRef.current.getAudioTracks().forEach(t => { t.enabled = true })
+        }
+        handleSkip()
+      }, 400)
     }
     utterance.onerror = () => {
       setIsInterviewerSpeaking(false)
+      if (mediaStreamRef.current && micEnabled) {
+        mediaStreamRef.current.getAudioTracks().forEach(t => { t.enabled = true })
+      }
       handleSkip()
     }
 
@@ -2152,7 +2177,7 @@ export default function InterviewPage() {
         if (hrReply && interviewerVoice && window.speechSynthesis) {
           const synth = window.speechSynthesis
           const hrVoiceProfile = panelMode
-            ? PANEL_VOICE_PROFILES[0] || VOICE_PROFILES.marcus
+            ? PANEL_VOICE_PROFILES[activePanelMember?.id] || VOICE_PROFILES.marcus
             : VOICE_PROFILES[interviewerPersona] || VOICE_PROFILES.sarah
           const hrSelectedVoice = chooseBrowserVoice(browserVoices.length ? browserVoices : synth.getVoices(), hrVoiceProfile)
           synth.cancel()
