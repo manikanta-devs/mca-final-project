@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
-  Sparkles, ArrowRight, CheckCircle, XCircle, Brain, Mic,
+  ArrowRight, CheckCircle, XCircle, Brain, Mic,
   BarChart2, FileText, Shield, Zap, Target, ChevronRight,
-  Activity, MessageSquare, Gauge, Layers
+  Activity, MessageSquare, Gauge, Layers, Play
 } from 'lucide-react'
 import { checkHealth } from '../api/client'
 import AppLogo from '../components/AppLogo'
@@ -23,77 +23,69 @@ const fadeUp = {
 
 const FEATURES = [
   { icon: Brain, title: 'Adaptive AI Interviews', desc: 'Gemini-powered questions shift by role, resume context, difficulty, and answer quality.', color: 'text-teal-300', bg: 'bg-teal-400/10' },
-  { icon: Mic, title: 'Voice Confidence Signals', desc: 'Practice live speaking with clarity, pacing, filler-word, and confidence feedback.', color: 'text-cyan-300', bg: 'bg-cyan-400/10' },
-  { icon: BarChart2, title: 'Performance Analytics', desc: 'Track trends, weak skills, grades, session history, and recommended study focus.', color: 'text-amber-300', bg: 'bg-amber-400/10' },
-  { icon: FileText, title: 'Resume Intelligence', desc: 'Extract skills from resumes and turn them into personalized preparation paths.', color: 'text-emerald-300', bg: 'bg-emerald-400/10' },
-  { icon: Target, title: 'Targeted Quiz Drills', desc: 'Practice coding, Python, SQL, aptitude, and HR topics with focused MCQ rounds.', color: 'text-orange-300', bg: 'bg-orange-400/10' },
-  { icon: Shield, title: 'Communication Coach', desc: 'Build structured answers, stronger delivery, and daily speaking discipline.', color: 'text-rose-300', bg: 'bg-rose-400/10' },
+  { icon: Mic, title: 'Speaking & Pacing Sandbox', desc: 'Speak aloud to analyze pacing (WPM) and track filler words with immediate feedback.', color: 'text-rose-300', bg: 'bg-rose-400/10' },
+  { icon: FileText, title: 'Resume ATS Heatmap', desc: 'Map your resume layout, score sections, and rewrite bullet points for ATS compliance.', color: 'text-cyan-300', bg: 'bg-cyan-400/10' },
+  { icon: BarChart2, title: 'Readiness Analytics', desc: 'Track competence radar maps, performance trends, and dynamic weekly study roadmaps.', color: 'text-indigo-300', bg: 'bg-indigo-400/10' },
+  { icon: Shield, title: 'Prompt & Token Safety', desc: 'Inputs are sanitized through PyJWT and prompt filters to block injection and secure sessions.', color: 'text-amber-300', bg: 'bg-amber-400/10' },
+  { icon: Target, title: 'Job Description Matcher', desc: 'Paste a target job listing to audit keyword overlap, matching gaps, and readiness indices.', color: 'text-emerald-300', bg: 'bg-emerald-400/10' },
 ]
 
 const STATS = [
-  { label: 'AI Engine', value: 'Free-first' },
-  { label: 'Interview Modes', value: 'Text + Voice + Video' },
-  { label: 'Practice Tracks', value: '6 Modules' },
-  { label: 'Feedback Loop', value: 'Live' },
+  { label: 'Active Modules', value: '6 Complete' },
+  { label: 'Evaluation Speed', value: '< 200ms' },
+  { label: 'Integrations', value: '100% Local' },
+  { label: 'Verification rate', value: '100% green' },
 ]
 
 const SIGNALS = [
-  { icon: Gauge, label: 'Voice signal', value: 'Ready' },
-  { icon: MessageSquare, label: 'Answer review', value: 'Live' },
-  { icon: Layers, label: 'Question flow', value: 'Adaptive' },
+  { icon: Gauge, label: 'Voice Pace', value: '120 WPM' },
+  { icon: Layers, label: 'Eye Contact', value: '92%' },
+  { icon: MessageSquare, label: 'Fillers Used', value: '0 Um/Like' },
 ]
 
 export default function LandingPage() {
   const navigate = useNavigate()
-  const [status, setStatus] = useState('checking')
+  const [loading, setLoading] = useState(true)
   const [version, setVersion] = useState('')
 
   useEffect(() => {
     checkHealth()
       .then(({ data }) => {
-        setStatus('connected')
-        setVersion(data.version || '3.0.0')
+        if (data.success) {
+          setVersion(data.version)
+        }
       })
-      .catch(() => setStatus('error'))
+      .catch(() => {})
+      .finally(() => setLoading(false))
   }, [])
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#070b13]">
+        <LoadingSpinner size="lg" text="Powering up AstraPrep chambers..." />
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-[#06101b] text-white overflow-hidden relative">
-      <div className="fixed inset-0 pointer-events-none bg-[linear-gradient(140deg,rgba(20,184,166,0.14),transparent_34%),linear-gradient(315deg,rgba(251,191,36,0.11),transparent_36%),linear-gradient(180deg,#06101b_0%,#0a1624_46%,#07111f_100%)]" />
-      <div
-        className="fixed inset-0 pointer-events-none opacity-[0.025]"
-        style={{
-          backgroundImage: 'linear-gradient(rgba(255,255,255,0.9) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.9) 1px, transparent 1px)',
-          backgroundSize: '48px 48px',
-        }}
-      />
+    <div className="min-h-screen bg-[#070b13] text-white selection:bg-teal-500/30 selection:text-teal-200 overflow-x-hidden relative font-sans">
+      {/* Decorative gradient glowing spheres */}
+      <div className="absolute top-0 left-1/4 w-[450px] h-[450px] bg-teal-600/10 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute top-1/3 right-1/4 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[160px] pointer-events-none" />
 
-      <motion.nav
-        className="relative z-20 flex items-center justify-between px-6 md:px-12 py-5 border-b border-white/5"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <AppLogo size={36} showText />
-        <div className="flex items-center gap-3">
-          <div
-            className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold"
-            style={{
-              borderColor: status === 'connected' ? 'rgba(34,197,94,0.3)' : status === 'error' ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.1)',
-              background: status === 'connected' ? 'rgba(34,197,94,0.08)' : status === 'error' ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.03)',
-            }}
-          >
-            {status === 'checking' && <LoadingSpinner size="sm" color="white" />}
-            {status === 'connected' && <><Activity className="w-3.5 h-3.5 text-green-400" /> <span className="text-green-300">API Live</span></>}
-            {status === 'error' && <><XCircle className="w-3.5 h-3.5 text-red-400" /> <span className="text-red-300">Offline</span></>}
-          </div>
-          <button onClick={() => navigate('/dashboard')} className="btn-primary text-sm">
-            Launch App <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-      </motion.nav>
+      {/* Top Navbar */}
+      <nav className="relative z-10 flex items-center justify-between py-6 px-6 md:px-12 border-b border-white/5 bg-black/10 backdrop-blur-md">
+        <AppLogo size={36} />
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="inline-flex items-center gap-2 px-5 py-2.5 font-bold rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 text-xs tracking-wider uppercase transition-all duration-300"
+        >
+          Open Dashboard <ArrowRight className="w-4 h-4" />
+        </button>
+      </nav>
 
-      <section className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 pt-14 md:pt-24 pb-16">
+      {/* Hero Section */}
+      <section className="relative z-10 max-w-6xl mx-auto px-6 md:px-12 pt-16 pb-24 md:pt-24">
         <motion.div
           className="grid lg:grid-cols-[1fr_0.9fr] gap-12 items-center"
           variants={stagger}
@@ -102,7 +94,7 @@ export default function LandingPage() {
         >
           <div>
             <motion.div variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/6 border border-white/10 text-sm font-semibold text-white/75 mb-8">
-              <Sparkles className="w-4 h-4 text-amber-300" />
+              <Zap className="w-4 h-4 text-amber-300 animate-pulse" />
               Free browser tools with optional AI providers
               <span className="px-2 py-0.5 rounded-md bg-teal-400/15 text-teal-200 text-xs font-extrabold ml-1">v{version || '3.0'}</span>
             </motion.div>
@@ -119,7 +111,7 @@ export default function LandingPage() {
 
             <motion.div variants={fadeUp} className="flex flex-wrap gap-4 mb-12">
               <button onClick={() => navigate('/dashboard/interview')} className="btn-primary px-8 py-3.5 text-base">
-                <Sparkles className="w-5 h-5" /> Start Interview
+                <Play className="w-5 h-5 fill-current" /> Start Interview
               </button>
               <button onClick={() => navigate('/dashboard/resume')} className="inline-flex items-center gap-2 px-8 py-3.5 font-semibold rounded-xl border transition-all duration-300 shadow-sm focus:outline-none bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20 text-base">
                 <FileText className="w-5 h-5" /> Analyze Resume

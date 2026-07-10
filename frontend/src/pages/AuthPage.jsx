@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Shield, Lock, User, ArrowRight, Sparkles } from 'lucide-react'
+import { Shield, Lock, User, ArrowRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { loginUser, registerUser } from '../api/client'
 import AppLogo from '../components/AppLogo'
@@ -219,7 +219,7 @@ export default function AuthPage() {
                 </>
               ) : (
                 <>
-                  Register <Sparkles className="w-4 h-4" />
+                  Register <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>

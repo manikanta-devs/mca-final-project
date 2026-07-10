@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import clsx from 'clsx'
 import {
   Camera, CameraOff, Mic, MicOff, PhoneOff,
-  Settings, Sparkles, UserRound, Wifi, Keyboard,
+  Settings, UserRound, Wifi, Keyboard,
   BrainCircuit, X, SkipForward,
   Clock, ChevronRight, Activity, Monitor
 } from 'lucide-react'
@@ -1495,9 +1495,9 @@ export default function AIInterviewerRoom({
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col">
                     <span className="text-xs font-bold text-violet-300 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-violet-400 animate-pulse" /> God Mode
+                      <Settings className="w-3.5 h-3.5 text-violet-400" /> God Mode
                     </span>
-                    <span className="text-[9px] text-gray-500">Enable mind reader and cheat sheet</span>
+                    <span className="text-[9px] text-gray-500">Perfect scores for testing</span>
                   </div>
                   <button
                     onClick={() => {

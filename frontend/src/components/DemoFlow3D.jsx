@@ -1,6 +1,6 @@
 import React from 'react'
 import { motion } from 'framer-motion'
-import { BarChart3, Brain, FileText, Mic, Sparkles, Target } from 'lucide-react'
+import { BarChart3, Brain, FileText, Mic, Target, Zap } from 'lucide-react'
 
 const STEPS = [
   {
@@ -13,20 +13,20 @@ const STEPS = [
   {
     icon: Brain,
     title: 'Question Engine',
-    detail: 'Generate role, difficulty, and resume-aware prompts',
-    accent: 'from-cyan-300 to-blue-300',
-    metric: 'Adaptive',
+    detail: 'Shift difficulty by resume context and score',
+    accent: 'from-cyan-300 to-indigo-300',
+    metric: 'Adaptive Qs',
   },
   {
     icon: Mic,
-    title: 'Live Interview',
-    detail: 'Record voice/video, waveform, transcript, delivery signals',
+    title: 'Speech Chamber',
+    detail: 'Process transcript, voice latency, fillers, speed',
     accent: 'from-rose-300 to-amber-300',
-    metric: 'Live mic',
+    metric: 'Live transcript',
   },
   {
     icon: Target,
-    title: 'AI Evaluation',
+    title: 'AI Evaluator',
     detail: 'Score clarity, relevance, confidence, and depth',
     accent: 'from-amber-300 to-orange-300',
     metric: 'Rubric',
@@ -45,7 +45,7 @@ export default function DemoFlow3D() {
     <section className="relative z-10 mx-auto max-w-7xl px-6 pb-24 md:px-12">
       <div className="mb-10 text-center">
         <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-semibold text-white/70">
-          <Sparkles className="h-4 w-4 text-amber-300" />
+          <Zap className="h-4 w-4 text-amber-300" />
           3D demo flow for viva and project walkthrough
         </div>
         <h2 className="text-3xl font-black md:text-4xl">Show the complete system in one scene</h2>
@@ -58,74 +58,34 @@ export default function DemoFlow3D() {
         <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(20,184,166,0.14),transparent_36%),linear-gradient(320deg,rgba(251,191,36,0.12),transparent_38%)]" />
         <div className="relative mx-auto max-w-6xl" style={{ perspective: '1300px' }}>
           <motion.div
-            className="grid gap-6 lg:grid-cols-5"
-            style={{
-              transformStyle: 'preserve-3d',
-              transform: 'rotateX(22deg) rotateY(-8deg) rotateZ(0deg)',
-            }}
-            initial={{ opacity: 0, y: 60, rotateX: 30 }}
-            whileInView={{ opacity: 1, y: 0, rotateX: 22 }}
-            viewport={{ once: true, amount: 0.25 }}
-            transition={{ duration: 0.8, ease: 'easeOut' }}
+            className="grid grid-cols-1 md:grid-cols-5 gap-4 relative z-10"
+            initial={{ rotateX: 18, rotateY: -8, rotateZ: -2, y: 35, opacity: 0 }}
+            whileInView={{ rotateX: 0, rotateY: 0, rotateZ: 0, y: 0, opacity: 1 }}
+            viewport={{ once: true, margin: '-80px' }}
+            transition={{ duration: 0.95, ease: [0.16, 1, 0.3, 1] }}
           >
             {STEPS.map(({ icon: Icon, title, detail, accent, metric }, index) => (
-              <motion.div
+              <div
                 key={title}
-                className="relative flex flex-col justify-between min-h-[340px] rounded-2xl border border-white/10 bg-[#07111f]/95 p-5 shadow-2xl shadow-black/40"
-                style={{
-                  transformStyle: 'preserve-3d',
-                  transform: `translateZ(${index % 2 === 0 ? 30 : 12}px)`,
-                }}
-                whileHover={{ y: -12, scale: 1.02 }}
-                transition={{ type: 'spring', stiffness: 260, damping: 22 }}
+                className="relative rounded-2xl border border-white/[0.06] bg-[#0c1420]/80 p-5 shadow-lg backdrop-blur-md flex flex-col justify-between h-48 group hover:border-white/20 transition-all duration-300"
               >
-                {index < STEPS.length - 1 && (
-                  <div className="absolute left-[calc(100%-12px)] top-1/3 z-0 hidden h-1 w-8 bg-gradient-to-r from-cyan-300/80 to-amber-300/70 lg:block" />
-                )}
-                
+                <div className="absolute -top-3.5 -right-3.5 w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[10px] font-black font-mono text-white/45">
+                  0{index + 1}
+                </div>
                 <div>
-                  <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${accent} text-slate-950 shadow-lg`}>
-                    <Icon className="h-6 w-6" />
+                  <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${accent} flex items-center justify-center p-2 mb-4 text-slate-950`}>
+                    <Icon className="w-5 h-5" />
                   </div>
-                  <div className="mb-3 rounded-xl border border-white/[0.08] bg-white/[0.03] p-3">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/35">Stage {index + 1}</p>
-                    <h3 className="mt-1 text-base font-black text-white">{title}</h3>
-                  </div>
-                  <p className="text-sm leading-relaxed text-white/60">{detail}</p>
+                  <h3 className="text-xs font-black text-white group-hover:text-teal-355 transition-colors">{title}</h3>
+                  <p className="text-[10px] text-white/45 leading-normal mt-1 font-semibold">{detail}</p>
                 </div>
-
-                <div className="mt-4">
-                  <div className="flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.045] px-3 py-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-white/35">Signal</span>
-                    <span className="text-sm font-black text-cyan-100">{metric}</span>
-                  </div>
-                  <div className="mt-3 grid grid-cols-4 gap-1 items-end h-10">
-                    {[20, 36, 26, 44].map((height, barIndex) => (
-                      <motion.span
-                        key={barIndex}
-                        className="block rounded-full bg-gradient-to-t from-teal-400 to-amber-200"
-                        style={{ height: `${height}px` }}
-                        animate={{ opacity: [0.45, 1, 0.45] }}
-                        transition={{ duration: 1.8, repeat: Infinity, delay: (index + barIndex) * 0.12 }}
-                      />
-                    ))}
-                  </div>
+                <div className="mt-3 pt-2.5 border-t border-white/5 flex justify-between items-center text-[9px] font-mono uppercase tracking-wider text-white/35">
+                  <span>Audit segment</span>
+                  <span className="font-bold text-white/50">{metric}</span>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </motion.div>
-        </div>
-
-        <div className="relative z-10 mt-8 grid gap-3 md:grid-cols-3">
-          {[
-            'Evaluator can understand the complete app flow in under 30 seconds.',
-            'Each stage maps directly to a real dashboard tool in the project.',
-            'The demo path is simple: upload, practice, evaluate, improve.',
-          ].map(item => (
-            <div key={item} className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/62">
-              {item}
-            </div>
-          ))}
         </div>
       </div>
     </section>

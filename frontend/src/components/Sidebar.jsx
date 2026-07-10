@@ -4,16 +4,15 @@ import { clsx } from 'clsx'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   FileText, Mic, BarChart2, Home, ChevronLeft, Brain,
-  ChevronRight, Moon, Sun, Sparkles, LogOut
+  ChevronRight, LogOut, Sun, Moon, Briefcase
 } from 'lucide-react'
-import toast from 'react-hot-toast'
 import { useApp } from '../context/AppContext'
 import AppLogo from './AppLogo'
 
 const NAV_ITEMS = [
   { to: '/dashboard',           icon: Home,      label: 'Dashboard',       badge: null },
   { to: '/dashboard/resume',    icon: FileText,  label: 'Resume Analysis', badge: null },
-  { to: '/dashboard/interview', icon: Sparkles,  label: 'Interview',       badge: null },
+  { to: '/dashboard/interview', icon: Briefcase, label: 'Interview',       badge: null },
   { to: '/dashboard/coach',     icon: Mic,       label: 'Coach',           badge: 'New' },
   { to: '/dashboard/quiz',      icon: Brain,     label: 'Quiz Practice',   badge: 'New' },
   { to: '/dashboard/analytics', icon: BarChart2, label: 'Analytics',       badge: null },
@@ -62,7 +61,7 @@ export default function Sidebar() {
             <AnimatePresence>
               {!collapsed && (
                 <motion.span
-                  className="flex-1 truncate"
+                   className="flex-1 truncate"
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -8 }}
@@ -96,11 +95,11 @@ export default function Sidebar() {
         <button
           onClick={toggleDark}
           className={clsx('sidebar-link w-full group', collapsed ? 'justify-center px-0' : '')}
-          title={darkMode ? 'Light mode' : 'Dark mode'}
+          title={darkMode ? 'Switch to Light mode' : 'Switch to Dark mode'}
         >
           {darkMode
-            ? <Sun className="w-5 h-5 shrink-0 text-amber-400 transition-transform duration-200 group-hover:rotate-45" />
-            : <Moon className="w-5 h-5 shrink-0 transition-transform duration-200 group-hover:-rotate-12" />
+            ? <Sun className="w-5 h-5 shrink-0 text-amber-500 transition-transform duration-200 group-hover:rotate-45" />
+            : <Moon className="w-5 h-5 shrink-0 text-slate-700 transition-transform duration-200 group-hover:-rotate-12" />
           }
           {!collapsed && <span>{darkMode ? 'Light Mode' : 'Dark Mode'}</span>}
         </button>

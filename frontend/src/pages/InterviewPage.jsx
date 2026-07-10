@@ -46,9 +46,6 @@ import {
   SkipForward,
 
 
-  Sparkles,
-
-
   Square,
 
 
@@ -64,10 +61,7 @@ import {
   Volume2,
 
 
-  Clock,
-
-
-  Zap,
+  Cpu,
 
 
 } from 'lucide-react'
@@ -968,11 +962,14 @@ export default function InterviewPage() {
 
     utterance.onend = handleSpeechEnd
     utterance.onerror = (err) => {
+      if (err.error === 'interrupted' || err.error === 'interrupted-by-another' || err.error === 'canceled') {
+        return
+      }
       console.warn('SpeechSynthesis error:', err)
       handleSpeechEnd()
     }
 
-    const durationEstimate = (textToSpeak.length * 80) + 4000
+    const durationEstimate = (textToSpeak.length * 110) + 7000
     const timer = window.setTimeout(() => {
       // Don't speak if the tab is hidden — it wastes TTS quota and the mic would capture silence
       if (document.hidden) {
@@ -3090,7 +3087,7 @@ export default function InterviewPage() {
               <div className="flex items-center justify-between border-b border-white/5 pb-2">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center">
-                    <Sparkles className="w-4.5 h-4.5 text-white" />
+                    <Cpu className="w-4.5 h-4.5 text-white" />
                   </div>
                   <div>
                     <span className="text-xs font-black text-white">{interviewerName}</span>
@@ -3446,7 +3443,7 @@ export default function InterviewPage() {
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-violet-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
 
 
-                      <Sparkles className="w-5 h-5 text-white" />
+                      <Cpu className="w-5 h-5 text-white" />
 
 
                     </div>

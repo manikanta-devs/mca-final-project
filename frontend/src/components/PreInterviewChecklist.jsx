@@ -1,5 +1,5 @@
-﻿import React, { useEffect, useRef, useState } from "react"
-import { Mic, Volume2, Globe, Check, Play, ShieldAlert, Cpu, Sparkles, Video } from "lucide-react"
+import React, { useEffect, useRef, useState } from "react"
+import { Mic, Volume2, Globe, Check, Play, ShieldAlert, Cpu, Video } from "lucide-react"
 import clsx from "clsx"
 
 export default function PreInterviewChecklist({
@@ -291,7 +291,7 @@ export default function PreInterviewChecklist({
             <div className="space-y-2">
               <div className={clsx("flex items-center justify-between p-3 rounded-2xl border text-xs", micStatus === "active" ? "border-green-500/20 bg-green-500/5" : "border-white/5 bg-slate-950/30")}>
                 <div className="flex items-center gap-2"><Mic className="w-4 h-4 text-cyan-400" /><span className="font-semibold">Microphone</span></div>
-                <span className={clsx("font-bold text-[11px]", micStatus === "active" ? "text-green-400" : "text-gray-500")}>
+                <span className={clsx("font-bold text-[11px]", micStatus === "active" ? "text-green-400" : micStatus === "checking" ? "text-gray-400" : "text-red-400")}>
                   {micStatus === "active" ? "Ready" : micStatus === "checking" ? "Checking..." : "Blocked"}
                 </span>
               </div>
@@ -334,9 +334,10 @@ export default function PreInterviewChecklist({
                 <p className="text-[10px] text-indigo-300 font-medium">{interviewerPersona === "sarah" ? "Senior Recruiter" : "HR Director"}</p>
               </div>
               <div className="ml-auto shrink-0 flex items-center gap-1.5 bg-indigo-500/10 border border-indigo-400/20 px-2 py-1 rounded-lg text-[9px] font-black uppercase text-indigo-300 tracking-wider">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-pulse" /> Ready
+                <Check className="w-3.5 h-3.5 text-indigo-400" /> Ready
               </div>
             </div>
+
           </div>
 
           <div className="space-y-2 pt-2">
@@ -353,21 +354,15 @@ export default function PreInterviewChecklist({
               className={clsx(
                 "w-full py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all shadow-xl",
                 allChecksPassed
-                  ? interviewFormat === "video"
-                    ? "bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white hover:scale-[1.01]"
-                    : "bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white hover:scale-[1.01]"
-                  : "bg-gray-800 text-gray-500 cursor-not-allowed border border-white/5"
+                  ? "bg-gradient-to-r from-cyan-500 to-indigo-500 text-white hover:opacity-90 active:scale-[0.99] cursor-pointer"
+                  : "bg-gray-800 text-gray-500 cursor-not-allowed"
               )}
             >
-              {allChecksPassed
-                ? interviewFormat === "video" ? "Join Video Interview" : "Start Voice Interview"
-                : "Preparing..."}
+              <span>Begin Mock Session</span>
             </button>
-            <p className="text-center text-[9px] text-gray-500">
-              {interviewFormat === "video" ? "Camera + mic active during interview" : "Mic only — no camera needed"}
-            </p>
           </div>
         </div>
+
       </div>
     </div>
   )

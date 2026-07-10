@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
-  Sparkles, FileText, Mic, Brain, ArrowRight,
+  FileText, Mic, Brain, ArrowRight,
   TrendingUp, Target, Clock, Award, ChevronRight,
-  Trophy, Flame, Check, AlertTriangle, Shield, Play, Map
+  Trophy, Flame, Check, AlertTriangle, Shield, Play, Map,
+  Briefcase, Zap
 } from 'lucide-react'
 import { getAnalyticsSummary, getAnalyticsSessions, getQuizSessions, getDashboardInsights } from '../api/client'
 import { useApp } from '../context/AppContext'
@@ -13,13 +14,12 @@ import AdvancedToolPanel from '../components/AdvancedToolPanel'
 import AdaptiveEngineStatus from '../components/AdaptiveEngineStatus'
 import { clsx } from 'clsx'
 
-// Stagger motions
 const stagger = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.06 } },
+  visible: { transition: { staggerChildren: 0.05 } },
 }
 const fadeUp = {
-  hidden: { opacity: 0, y: 16 },
+  hidden: { opacity: 0, y: 12 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.35 } },
 }
 
@@ -47,7 +47,11 @@ export default function DashboardOverview() {
   }, [])
 
   if (loading) {
-    return <div className="flex items-center justify-center py-24"><LoadingSpinner size="lg" text="Loading dashboard command center..." /></div>
+    return (
+      <div className="flex flex-col items-center justify-center py-24 space-y-4">
+        <LoadingSpinner size="lg" text="Loading dashboard command center..." />
+      </div>
+    )
   }
 
   const hasData = summary && summary.total_sessions > 0
@@ -100,31 +104,26 @@ export default function DashboardOverview() {
     }
   }
 
-  // Calculate overall progress completion percentage
   const completedStepsCount = workflowSteps.filter(s => s.status === 'completed').length
   const progressPercent = Math.round((completedStepsCount / workflowSteps.length) * 100)
 
-  // Smart Quick Actions (Prioritized based on lowest scores/weak areas)
-  // Default values
   const baseActions = [
-    { id: 'quiz', icon: Brain, label: 'Start Topic Quiz', desc: hasData ? `Practice focus: ${topFocus}.` : 'Calibrate your readiness with a short drill.', path: '/dashboard/quiz', iconColor: 'text-orange-500', isRecommended: !resumeData },
-    { id: 'interview', icon: Sparkles, label: 'Mock Interview', desc: 'Start a mock interview session', path: '/dashboard/interview', iconColor: 'text-teal-500', isRecommended: false },
-    { id: 'resume', icon: FileText, label: 'Resume Coach', desc: 'Audited checklist and scanner', path: '/dashboard/resume', iconColor: 'text-emerald-500', isRecommended: false },
-    { id: 'coach', icon: Mic, label: 'Communication Coach', desc: 'Improve speaking and structure', path: '/dashboard/coach', iconColor: 'text-fuchsia-500', isRecommended: false },
+    { id: 'quiz', icon: Brain, label: 'Start Topic Quiz', desc: hasData ? `Practice focus: ${topFocus}.` : 'Calibrate your readiness with a short drill.', path: '/dashboard/quiz', iconColor: 'text-orange-500 dark:text-orange-400', isRecommended: !resumeData },
+    { id: 'interview', icon: Briefcase, label: 'Mock Interview', desc: 'Start a mock interview session', path: '/dashboard/interview', iconColor: 'text-indigo-650 dark:text-cyan-400', isRecommended: false },
+    { id: 'resume', icon: FileText, label: 'Resume Coach', desc: 'Audited checklist and scanner', path: '/dashboard/resume', iconColor: 'text-emerald-600 dark:text-emerald-400', isRecommended: false },
+    { id: 'coach', icon: Mic, label: 'Communication Coach', desc: 'Improve speaking and structure', path: '/dashboard/coach', iconColor: 'text-fuchsia-600 dark:text-fuchsia-400', isRecommended: false },
   ]
 
-  // If we have data, we sort recommendation
   let actions = [...baseActions]
   if (hasData) {
     const techScore = summary.avg_technical || 0
     const clarityScore = summary.avg_clarity || 0
     if (clarityScore < techScore) {
-      // Prioritize Communication Coach
       actions = [
-        { id: 'coach', icon: Mic, label: 'Communication Drill', desc: 'Pacing & filler word counts need tuning.', path: '/dashboard/coach', iconColor: 'text-fuchsia-500', isRecommended: true },
-        { id: 'interview', icon: Sparkles, label: 'Mock Interview', desc: 'Start a mock interview session', path: '/dashboard/interview', iconColor: 'text-teal-500', isRecommended: false },
-        { id: 'quiz', icon: Brain, label: 'Today\'s Quiz', desc: 'Sharpen CS fundamentals with drills', path: '/dashboard/quiz', iconColor: 'text-orange-500', isRecommended: false },
-        { id: 'resume', icon: FileText, label: 'Resume Coach', desc: 'Audited checklist and scanner', path: '/dashboard/resume', iconColor: 'text-emerald-500', isRecommended: false },
+        { id: 'coach', icon: Mic, label: 'Communication Drill', desc: 'Pacing & filler word counts need tuning.', path: '/dashboard/coach', iconColor: 'text-fuchsia-600 dark:text-fuchsia-400', isRecommended: true },
+        { id: 'interview', icon: Briefcase, label: 'Mock Interview', desc: 'Start a mock interview session', path: '/dashboard/interview', iconColor: 'text-indigo-650 dark:text-cyan-400', isRecommended: false },
+        { id: 'quiz', icon: Brain, label: 'Today\'s Quiz', desc: 'Sharpen CS fundamentals with drills', path: '/dashboard/quiz', iconColor: 'text-orange-500 dark:text-orange-400', isRecommended: false },
+        { id: 'resume', icon: FileText, label: 'Resume Coach', desc: 'Audited checklist and scanner', path: '/dashboard/resume', iconColor: 'text-emerald-600 dark:text-emerald-400', isRecommended: false },
       ]
     }
   }
@@ -132,7 +131,6 @@ export default function DashboardOverview() {
   const emptyHeatmap = Array.from({ length: 15 }, () => Array.from({ length: 7 }, () => ({ level: 0, count: 0 })))
   const heatmapWeeks = dashboardInsights?.heatmap_weeks || emptyHeatmap
 
-  // Badges / Achievements
   const achievements = [
     { id: 'first', icon: Trophy, label: 'First Contact', desc: 'Completed first mock session', unlocked: hasData },
     { id: 'streak', icon: Flame, label: '7-Day Streak', desc: 'Consistent practice habit', unlocked: hasData && summary.total_sessions >= 3 },
@@ -141,17 +139,25 @@ export default function DashboardOverview() {
   ]
 
   return (
-    <motion.div className="space-y-6 select-none" variants={stagger} initial="hidden" animate="visible">
-      
-      {/* AI Daily Mission Card */}
-      <motion.div variants={fadeUp} className="card bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950/70 border-none shadow-2xl p-6 rounded-3xl relative overflow-hidden text-white">
-        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_20%_20%,rgba(99,102,241,0.18),transparent_35%),radial-gradient(circle_at_85%_10%,rgba(34,197,94,0.1),transparent_26%)]" />
+    <motion.div 
+      className="space-y-6 text-slate-800 dark:text-slate-100 select-none pb-12" 
+      variants={stagger} 
+      initial="hidden" 
+      animate="visible"
+    >
+      {/* --- COMMAND HUB PANEL --- */}
+      <motion.div 
+        variants={fadeUp} 
+        className="card relative overflow-hidden shadow-2xl p-6"
+      >
+        <div className="absolute inset-0 bg-grid-pattern opacity-[0.02] pointer-events-none" />
+        <div className="absolute -top-20 right-0 w-80 h-80 bg-indigo-600/5 rounded-full blur-3xl pointer-events-none" />
         
         <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[1.3fr_0.7fr] gap-6">
           <div className="space-y-5">
             <div>
-              <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-[0.2em] block mb-1">Today&apos;s AI Command Center</span>
-              <h2 className="text-2xl lg:text-3xl font-black">Interactive Practice Pathway</h2>
+              <span className="text-[9px] font-mono tracking-widest text-indigo-650 dark:text-indigo-400 font-extrabold uppercase border-b border-indigo-500/20 pb-0.5">Today&apos;s Command Pathway</span>
+              <h2 className="text-xl lg:text-2xl font-black text-slate-900 dark:text-white mt-1">Preparation Control Center</h2>
             </div>
 
             {/* Workflow steps */}
@@ -159,84 +165,85 @@ export default function DashboardOverview() {
               {workflowSteps.map((step, idx) => (
                 <React.Fragment key={step.id}>
                   <div className={clsx(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all",
-                    step.status === 'completed' && "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
-                    step.status === 'active' && "bg-indigo-500/20 border-indigo-500/30 text-indigo-300 shadow-[0_0_12px_rgba(99,102,241,0.15)]",
-                    step.status === 'locked' && "bg-white/[0.02] border-white/5 text-gray-500 opacity-60"
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-mono uppercase tracking-widest border transition-all",
+                    step.status === 'completed' && "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-405",
+                    step.status === 'active' && "bg-indigo-500/10 dark:bg-indigo-500/20 border-indigo-500/20 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-300 shadow-md dark:shadow-[0_0_12px_rgba(99,102,241,0.1)]",
+                    step.status === 'locked' && "bg-black/[0.02] dark:bg-white/[0.02] border-black/5 dark:border-white/5 text-gray-400 dark:text-gray-600 opacity-60"
                   )}>
                     {step.status === 'completed' ? (
-                      <Check className="w-3 h-3" />
+                      <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                     ) : step.status === 'active' ? (
-                      <Sparkles className="w-3 h-3 animate-pulse" />
+                      <Zap className="w-3 h-3 text-indigo-550 dark:text-indigo-400 animate-pulse" />
                     ) : (
-                      <Shield className="w-3 h-3" />
+                      <Shield className="w-3 h-3 text-gray-400 dark:text-gray-600" />
                     )}
                     <span>{step.label}</span>
                   </div>
                   {idx < workflowSteps.length - 1 && (
-                    <ChevronRight className="w-3 h-3 text-gray-600 shrink-0" />
+                    <ChevronRight className="w-3 h-3 text-slate-350 dark:text-gray-700 shrink-0" />
                   )}
                 </React.Fragment>
               ))}
             </div>
 
             {/* Dynamic recommendation */}
-            <div className="bg-white/[0.03] border border-white/5 p-4 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="bg-slate-950/5 dark:bg-slate-950/40 border border-black/5 dark:border-white/5 p-4 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
-                <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest block mb-0.5">Today&apos;s Recommendation</span>
-                <h4 className="text-sm font-bold text-white mb-0.5">{recommendation.title}</h4>
-                <p className="text-xs text-gray-300 font-normal leading-normal">{recommendation.text}</p>
+                <span className="text-[8px] font-mono tracking-widest text-indigo-600 dark:text-indigo-400 uppercase block mb-0.5">AI Suggestion</span>
+                <h4 className="text-xs font-bold text-slate-900 dark:text-white mb-0.5">{recommendation.title}</h4>
+                <p className="text-[11px] text-slate-500 dark:text-gray-400 font-normal leading-normal">{recommendation.text}</p>
               </div>
               <button 
                 onClick={() => navigate(recommendation.path)}
-                className="btn bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-4 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 shrink-0"
+                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-550 text-white text-xs font-mono font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 shrink-0 shadow-lg shadow-indigo-600/10"
               >
                 <span>{recommendation.action}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            <div className="grid grid-cols-3 gap-4 bg-white/[0.01] border border-white/5 p-3.5 rounded-2xl">
+            {/* Diagnostics Stats */}
+            <div className="grid grid-cols-3 gap-4 bg-slate-950/5 dark:bg-slate-950/20 border border-black/5 dark:border-white/5 p-3.5 rounded-2xl font-mono text-center">
               <div>
-                <div className="text-lg font-black text-indigo-400">
+                <div className="text-md font-black text-indigo-600 dark:text-indigo-400">
                   {resumeData?.score || 0}%
                 </div>
-                <div className="text-[9px] text-gray-400 uppercase font-bold mt-0.5">Resume Score</div>
+                <div className="text-[8px] text-slate-450 dark:text-gray-500 uppercase tracking-wider mt-0.5">Resume ATS</div>
               </div>
               <div>
-                <div className="text-lg font-black text-emerald-400">
+                <div className="text-md font-black text-emerald-600 dark:text-emerald-400">
                   {overallReadiness}%
                 </div>
-                <div className="text-[9px] text-gray-400 uppercase font-bold mt-0.5">Ready Index</div>
+                <div className="text-[8px] text-slate-450 dark:text-gray-500 uppercase tracking-wider mt-0.5">Ready Index</div>
               </div>
               <div>
-                <div className="text-lg font-black text-cyan-400">
+                <div className="text-md font-black text-cyan-600 dark:text-cyan-400">
                   {practiceTime}m
                 </div>
-                <div className="text-[9px] text-gray-400 uppercase font-bold mt-0.5">Practice Time</div>
+                <div className="text-[8px] text-slate-450 dark:text-gray-500 uppercase tracking-wider mt-0.5">Time Spent</div>
               </div>
             </div>
           </div>
 
-          {/* Progress gauge */}
-          <div className="flex flex-col justify-center items-center bg-white/[0.01] border border-white/5 p-5 rounded-2xl">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Overall Progress</span>
+          {/* Progress Circular gauge */}
+          <div className="flex flex-col justify-center items-center bg-slate-950/5 dark:bg-slate-950/40 border border-black/5 dark:border-white/5 p-5 rounded-2xl">
+            <span className="text-[9px] font-mono tracking-widest text-slate-400 dark:text-gray-500 uppercase mb-3">Overall Progress</span>
             <div className="relative w-28 h-28 flex items-center justify-center">
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="40" fill="transparent" stroke="rgba(255,255,255,0.03)" strokeWidth="8" />
-                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#6366f1" strokeWidth="8" strokeDasharray={251} strokeDashoffset={251 - (251 * progressPercent) / 100} strokeLinecap="round" />
+                <circle cx="50" cy="50" r="40" fill="transparent" stroke="rgba(0,0,0,0.03)" strokeWidth="6" />
+                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#6366f1" strokeWidth="6" strokeDasharray={251} strokeDashoffset={251 - (251 * progressPercent) / 100} strokeLinecap="round" />
               </svg>
               <div className="absolute text-center">
-                <div className="text-2xl font-black">{progressPercent}%</div>
-                <div className="text-[8px] text-gray-400 font-bold uppercase tracking-wider">Mission</div>
+                <div className="text-xl font-black text-slate-900 dark:text-white">{progressPercent}%</div>
+                <div className="text-[8px] text-slate-450 dark:text-gray-500 font-bold uppercase tracking-wider font-mono">Mission</div>
               </div>
             </div>
             <button
               onClick={() => navigate(recommendation.path)}
-              className="btn bg-white hover:bg-gray-100 text-gray-950 text-xs w-full py-2.5 rounded-xl font-bold mt-4 flex items-center justify-center gap-2"
+              className="w-full py-2.5 rounded-xl bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-gray-100 text-white dark:text-gray-950 text-xs font-mono font-bold uppercase tracking-widest mt-4 flex items-center justify-center gap-1.5 transition-colors"
             >
-              <Play className="w-3.5 h-3.5 fill-gray-950" />
-              Continue Mission
+              <Play className="w-3.5 h-3.5 fill-current" />
+              <span>Continue Mission</span>
             </button>
           </div>
         </div>
@@ -251,13 +258,13 @@ export default function DashboardOverview() {
         <AdvancedToolPanel type="dashboard" />
       </motion.div>
 
-      {/* Main Grid: Left Side actions/feed, Right Side targets/achievements */}
+      {/* Main Grid: Left Side actions, Right Side intelligence */}
       <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-6 items-start">
-        {/* Left Side */}
+        {/* Left Column */}
         <div className="space-y-6">
           {/* Smart Quick Actions */}
-          <div className="card space-y-4">
-            <h3 className="font-extrabold text-gray-900 dark:text-white text-sm">Smart Quick Actions</h3>
+          <div className="card p-5 space-y-4">
+            <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest font-mono border-b border-black/5 dark:border-white/5 pb-2">Smart Action Nodes</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {actions.map(action => (
                 <button
@@ -266,56 +273,56 @@ export default function DashboardOverview() {
                   className={clsx(
                     'text-left p-4 rounded-2xl border transition-all relative group flex flex-col justify-between h-36',
                     action.isRecommended
-                      ? 'border-violet-500/40 bg-violet-600/[0.02] dark:bg-violet-600/[0.04]'
-                      : 'border-gray-200 dark:border-gray-800 bg-transparent hover:border-gray-300 dark:hover:border-gray-700'
+                      ? 'border-indigo-500/25 bg-indigo-500/[0.02] dark:bg-indigo-600/[0.01]'
+                      : 'border-black/5 dark:border-white/5 bg-transparent hover:border-black/10 dark:hover:border-white/10'
                   )}
                 >
                   {action.isRecommended && (
-                    <span className="absolute top-3 right-3 px-2 py-0.5 rounded bg-violet-500/10 text-violet-500 border border-violet-500/15 text-[9px] font-black uppercase tracking-wider">
-                      Recommended
+                    <span className="absolute top-3 right-3 px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/10 text-[8px] font-mono uppercase tracking-widest">
+                      Priority
                     </span>
                   )}
                   
-                  <div className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 flex items-center justify-center shrink-0">
-                    <action.icon className={clsx('w-5 h-5', action.iconColor)} />
+                  <div className="w-9 h-9 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 flex items-center justify-center shrink-0">
+                    <action.icon className={clsx('w-4.5 h-4.5', action.iconColor)} />
                   </div>
 
                   <div>
-                    <div className="font-semibold text-gray-900 dark:text-white text-xs mb-1 flex items-center gap-1.5">
+                    <div className="font-bold text-slate-900 dark:text-white text-xs mb-1 flex items-center gap-1">
                       <span>{action.label}</span>
-                      <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:translate-x-1 transition-transform" />
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-400 dark:text-gray-500 group-hover:translate-x-0.5 transition-transform" />
                     </div>
-                    <p className="text-[10px] text-gray-500 leading-normal font-normal">{action.desc}</p>
+                    <p className="text-[10px] text-slate-500 dark:text-gray-400 leading-normal font-normal">{action.desc}</p>
                   </div>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Practice Heatmap (GitHub contributions style) */}
-          <div className="card space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="font-extrabold text-gray-900 dark:text-white text-sm">Practice Consistency Heatmap</h3>
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Last 100 Days</span>
+          {/* Consistency Heatmap */}
+          <div className="card p-5 space-y-4">
+            <div className="flex justify-between items-center border-b border-black/5 dark:border-white/5 pb-2">
+              <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest font-mono">Intensity Matrix</h3>
+              <span className="text-[9px] text-slate-400 dark:text-gray-500 font-mono">LAST 100 DAYS</span>
             </div>
             
-            <div className="flex gap-1.5 overflow-x-auto pb-2">
+            <div className="flex gap-1.5 overflow-x-auto pb-2 select-none">
               {heatmapWeeks.map((week, idx) => (
                 <div key={idx} className="flex flex-col gap-1.5 shrink-0">
                   {week.map((day, dIdx) => {
                     const color = {
-                      0: 'bg-gray-100 dark:bg-gray-800/80',
-                      1: 'bg-violet-600/20',
-                      2: 'bg-violet-600/40',
-                      3: 'bg-violet-600/70',
-                      4: 'bg-violet-600'
+                      0: 'bg-black/5 dark:bg-white/5 border border-black/[0.01] dark:border-white/[0.02]',
+                      1: 'bg-indigo-500/20 border border-indigo-500/10',
+                      2: 'bg-indigo-500/40 border border-indigo-500/10',
+                      3: 'bg-indigo-500/70 border border-indigo-500/10',
+                      4: 'bg-indigo-600 border border-indigo-500/20'
                     }[day.level]
 
                     return (
                       <div
                         key={dIdx}
-                        className={clsx('w-3.5 h-3.5 rounded', color)}
-                        title={`Practice intensity level ${day.level}`}
+                        className={clsx('w-3.5 h-3.5 rounded-md transition-colors', color)}
+                        title={`Drill count: ${day.count}`}
                       />
                     )
                   })}
@@ -325,86 +332,87 @@ export default function DashboardOverview() {
           </div>
         </div>
 
-        {/* Right Side */}
+        {/* Right Column */}
         <div className="space-y-6">
-          {/* Readiness intelligence */}
-          <div className="card space-y-4 border border-cyan-500/10 bg-cyan-950/[0.01]">
-            <div className="flex justify-between items-start border-b border-gray-100 dark:border-gray-800 pb-3">
+          {/* Readiness Intelligence */}
+          <div className="card p-5 space-y-4">
+            <div className="flex justify-between items-start border-b border-black/5 dark:border-white/5 pb-3">
               <div>
-                <span className="text-[9px] font-bold text-cyan-500 uppercase tracking-widest block">Readiness Intelligence</span>
-                <h4 className="text-xs font-black text-gray-900 dark:text-white">{dashboardInsights?.readiness_label || 'Baseline needed'}</h4>
-                <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 leading-relaxed max-w-sm">
+                <span className="text-[9px] font-mono tracking-widest text-indigo-600 dark:text-cyan-400 uppercase block">Intelligence Dossier</span>
+                <h4 className="text-xs font-black text-slate-900 dark:text-white mt-0.5">{dashboardInsights?.readiness_label || 'Baseline needed'}</h4>
+                <p className="text-[10px] text-slate-500 dark:text-gray-500 mt-1 leading-relaxed max-w-sm font-normal">
                   {dashboardInsights?.readiness_reason || 'Complete one interview to unlock personalized dashboard intelligence.'}
                 </p>
               </div>
               <span className={clsx(
-                'px-2 py-0.5 rounded border text-[9px] font-bold uppercase tracking-wider',
-                hasInsightData ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/15' : 'bg-cyan-500/10 text-cyan-400 border-cyan-500/15'
+                'px-2 py-0.5 rounded border text-[8px] font-mono uppercase tracking-widest',
+                hasInsightData ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-450 border-emerald-500/10' : 'bg-indigo-500/10 dark:bg-cyan-500/10 text-indigo-600 dark:text-cyan-400 border-indigo-500/10 dark:border-cyan-500/10'
               )}>
-                {hasInsightData ? 'Live Data' : 'Needs Data'}
+                {hasInsightData ? 'Live Data' : 'Calibrating'}
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 text-xs font-semibold text-gray-700 dark:text-gray-300">
+            <div className="grid grid-cols-2 gap-4 text-xs font-mono">
               <div className="space-y-0.5">
-                <span className="text-[10px] text-gray-400 font-normal">Hiring Readiness</span>
-                <div className="text-lg font-black text-gray-900 dark:text-white">{overallReadiness}%</div>
+                <span className="text-[9px] text-slate-400 dark:text-gray-500 uppercase tracking-wider block">Readiness Score</span>
+                <div className="text-md font-black text-slate-900 dark:text-white">{overallReadiness}%</div>
               </div>
               <div className="space-y-0.5">
-                <span className="text-[10px] text-gray-400 font-normal">Trend Delta</span>
-                <div className={clsx('text-lg font-black', trendDelta > 0 ? 'text-emerald-500' : trendDelta < 0 ? 'text-rose-500' : 'text-gray-900 dark:text-white')}>
+                <span className="text-[9px] text-slate-400 dark:text-gray-500 uppercase tracking-wider block">Trend Delta</span>
+                <div className={clsx('text-md font-black', trendDelta > 0 ? 'text-emerald-600 dark:text-emerald-400' : trendDelta < 0 ? 'text-rose-600 dark:text-rose-450' : 'text-slate-900 dark:text-white')}>
                   {trendDelta > 0 ? '+' : ''}{trendDelta}%
                 </div>
               </div>
               <div className="space-y-0.5">
-                <span className="text-[10px] text-gray-400 font-normal">Practice Streak</span>
-                <div className="text-lg font-black text-gray-900 dark:text-white">{streakDays}d</div>
+                <span className="text-[9px] text-slate-400 dark:text-gray-500 uppercase tracking-wider block">Active Streak</span>
+                <div className="text-md font-black text-slate-900 dark:text-white">{streakDays}d</div>
               </div>
               <div className="space-y-0.5">
-                <span className="text-[10px] text-gray-400 font-normal">Top Focus</span>
-                <div className="text-xs font-black text-cyan-500 line-clamp-2">{topFocus}</div>
+                <span className="text-[9px] text-slate-400 dark:text-gray-500 uppercase tracking-wider block">Target Weak Area</span>
+                <div className="text-[10px] font-bold text-indigo-600 dark:text-cyan-400 truncate max-w-[140px]">{topFocus}</div>
               </div>
             </div>
 
-            <div className="space-y-2 border-t border-gray-100 dark:border-gray-800/80 pt-3">
-              <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Real Progress Milestones</span>
+            <div className="space-y-2 border-t border-black/5 dark:border-white/5 pt-3.5">
+              <span className="text-[9px] font-mono tracking-widest text-slate-400 dark:text-gray-500 uppercase block">Milestones Audit</span>
               <div className="space-y-2 text-xs">
                 {(dashboardInsights?.milestones || []).map((item) => (
-                  <div key={item.label} className={clsx('flex items-center gap-2 font-normal', item.complete ? 'text-gray-600 dark:text-gray-300' : 'text-gray-400')}>
-                    <div className={clsx('w-4 h-4 rounded-full flex items-center justify-center border text-[10px] font-bold', item.complete ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/20' : 'bg-white/5 text-gray-400 border-white/10')}>
-                      {item.complete && <Check className="w-3 h-3" />}
+                  <div key={item.label} className={clsx('flex items-center gap-2 font-normal', item.complete ? 'text-slate-700 dark:text-gray-300' : 'text-slate-400 dark:text-gray-650')}>
+                    <div className={clsx('w-4.5 h-4.5 rounded-full flex items-center justify-center border text-[9px] font-bold shrink-0', item.complete ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/10' : 'bg-black/5 dark:bg-white/5 text-gray-400 dark:text-gray-600 border-black/5 dark:border-white/5')}>
+                      {item.complete && <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />}
                     </div>
-                    <span>{item.label}</span>
+                    <span className="text-[11px] font-medium">{item.label}</span>
                   </div>
                 ))}
               </div>
             </div>
           </div>
+
           {/* Badges / Achievements Panel */}
-          <div className="card space-y-4">
-            <h3 className="font-extrabold text-gray-900 dark:text-white text-sm">Achievements & Badges</h3>
+          <div className="card p-5 space-y-4">
+            <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest font-mono border-b border-black/5 dark:border-white/5 pb-2">Achievements Node</h3>
             <div className="grid grid-cols-2 gap-4">
               {achievements.map(badge => (
                 <div
                   key={badge.id}
                   className={clsx(
-                    'p-3.5 rounded-2xl border transition-all text-center flex flex-col items-center justify-center space-y-2',
+                    'p-3.5 rounded-2xl border text-center flex flex-col items-center justify-center space-y-2',
                     badge.unlocked
-                      ? 'border-violet-500/20 bg-violet-600/[0.01]'
-                      : 'border-gray-100 dark:border-gray-800 bg-transparent opacity-40'
+                      ? 'border-indigo-500/10 dark:border-violet-500/10 bg-indigo-500/[0.02] dark:bg-violet-600/[0.01]'
+                      : 'border-black/5 dark:border-white/5 bg-transparent opacity-40'
                   )}
                 >
                   <div className={clsx(
-                    'w-9 h-9 rounded-full flex items-center justify-center border',
+                    'w-9 h-9 rounded-full flex items-center justify-center border shrink-0',
                     badge.unlocked
-                      ? 'bg-violet-500/10 border-violet-500/20 text-violet-500'
-                      : 'bg-gray-100 dark:bg-gray-800 border-gray-200 text-gray-400'
+                      ? 'bg-indigo-500/10 dark:bg-violet-500/10 border-indigo-500/20 dark:border-violet-500/20 text-indigo-600 dark:text-violet-400'
+                      : 'bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-gray-405 dark:text-gray-600'
                   )}>
                     <badge.icon className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-[10px] font-black text-gray-900 dark:text-white block">{badge.label}</span>
-                    <span className="text-[8px] text-gray-400 font-normal block leading-tight mt-0.5">{badge.desc}</span>
+                    <span className="text-[10px] font-black text-slate-900 dark:text-white block">{badge.label}</span>
+                    <span className="text-[8.5px] text-slate-555 dark:text-gray-500 font-normal block leading-tight mt-0.5">{badge.desc}</span>
                   </div>
                 </div>
               ))}

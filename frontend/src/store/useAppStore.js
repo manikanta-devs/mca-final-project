@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import toast from 'react-hot-toast'
 
 const useAppStore = create((set) => ({
   // Resume state
@@ -23,7 +24,7 @@ const useAppStore = create((set) => ({
   setCandidateName: (name) => set({ candidateName: name }),
 
   // Dark mode
-  darkMode: localStorage.getItem('darkMode') === 'true',
+  darkMode: localStorage.getItem('darkMode') !== 'false',
   toggleDark: () =>
     set((state) => {
       const next = !state.darkMode
@@ -38,8 +39,12 @@ const useAppStore = create((set) => ({
 }))
 
 // Apply dark mode on initial load
-if (localStorage.getItem('darkMode') === 'true') {
+if (localStorage.getItem('darkMode') !== 'false') {
   document.documentElement.classList.add('dark')
+} else {
+  document.documentElement.classList.remove('dark')
 }
 
 export default useAppStore
+
+

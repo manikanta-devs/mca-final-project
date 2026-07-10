@@ -2,7 +2,7 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import {
   Activity, AudioLines, BarChart3, Brain, CheckCircle2, FileSearch,
-  Gauge, Lightbulb, Mic, Radar, Route, ShieldCheck, Sparkles, Target,
+  Gauge, Lightbulb, Mic, Radar, Route, ShieldCheck, Target,
   Timer, Trophy, Zap
 } from 'lucide-react'
 
@@ -85,7 +85,7 @@ const ICONS = [Activity, Gauge, Timer, ShieldCheck, Trophy, Lightbulb, Route, Ta
 
 export default function AdvancedToolPanel({ type = 'dashboard', compact = false }) {
   const data = PANEL_DATA[type] || PANEL_DATA.dashboard
-  const Icon = data.icon || Sparkles
+  const Icon = data.icon || Trophy
 
   return (
     <motion.div
