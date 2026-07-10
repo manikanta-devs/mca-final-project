@@ -106,28 +106,47 @@ def coach_ask():
         IMPORTANT: Explain the topic in extremely simple, friendly, and easy-to-understand language.
         Be extremely brief, concise, and structured. Keep the definition to 1-2 sentences and the analogy to 2 sentences max. Keep all text concise to avoid scroll bloat.
         Format your response strictly as a JSON object with the following keys:
-        - definition: A very simple, friendly 1-2 sentence definition.
+        - definition: A very simple, friendly 1-2 sentence definition of the term or question context.
         - analogy: A creative, extremely easy-to-understand real-world analogy.
-        - example: A technical example showing structure, data payloads, or code snippets (keep it basic and clear).
-        - model_answer: A premium mock answer the candidate can speak out loud in an interview.
+        - example: A technical example (like code/JSON snippet) OR a structural blueprint/formula if it is a career/HR question.
+        - model_answer: A premium mock answer the candidate can speak out loud in an interview (make it sound highly human, natural, and conversational).
         - follow_ups: A list of 3 expected follow-up questions they'll ask next.
         
         CRITICAL RULES:
         1. All values for definition, analogy, example, and model_answer MUST be plain, flat strings. Do NOT wrap them in nested objects, dicts, or lists of objects (e.g. do NOT use {{"text": "...", "description": "..."}}).
         2. The value for follow_ups MUST be a list of plain strings, NOT a list of objects.
         3. Do not include comments, descriptions, or explanation fields inside the JSON keys.
+        4. If the query is an HR or self-introduction question, do NOT talk about database or code patterns in definition/analogy. Give a clear explanation of how to answer the question, a movie-trailer style analogy, a formula template, and a premium mock script.
         Ensure the output is valid JSON and nothing else."""
 
         raw_response = gemini_service.generate_content(prompt, max_tokens=600)
         if not raw_response:
             # Dynamic fallback when AI is unavailable
-            parsed = {
-                "definition": f"Mentor explanation: '{question}' is a core technical concept relating to software development and system architecture.",
-                "analogy": "Think of it like a well-organized filing cabinet where everything is labeled and easy to retrieve.",
-                "example": "Basic design pattern or implementation code demonstrating structure.",
-                "model_answer": f"To explain '{question}' in an interview, I would discuss the primary design rationale, benefits, and how we handle trade-offs in production.",
-                "follow_ups": ["What are the core benefits of this approach?", "How does this scale?", "What are the common pitfalls?"]
-            }
+            q_lower = question.lower()
+            if any(k in q_lower for k in ["introduction", "about yourself", "intro"]):
+                parsed = {
+                    "definition": "A self-introduction is a 90-second professional story that establishes your background, core technical capabilities, and goals.",
+                    "analogy": "Think of it like a movie trailer—it highlights the most exciting, relevant parts of your journey to make the recruiter want to hear more.",
+                    "example": "Formula: Hook (Name & MCA background) -> Core Tech Stack -> Key Project (STAR format) -> Close (Career Goals fit).",
+                    "model_answer": "My name is [Name]. I am graduating with an MCA degree, focusing on React and Python/Flask development. Recently, I built an AI interview simulator that evaluates answers using dynamic LLM API fallbacks. Building this taught me a lot about REST API latency, SQLite integration, and front-end styling. I am eager to apply this hands-on coding mindset as a junior developer at your firm.",
+                    "follow_ups": ["How long should my self-introduction be?", "Should I mention my non-technical hobbies?", "How do I explain gaps in my education?"]
+                }
+            elif any(k in q_lower for k in ["hire you", "why hire"]):
+                parsed = {
+                    "definition": "Why Should We Hire You is an interview question where you align your key projects and learning drive directly to the team's vacancy checklist.",
+                    "analogy": "Think of it like puzzle pieces—you are explaining how your coding skills and background perfectly slide into the team's empty developer slot.",
+                    "example": "Formula: Their tech stack requirements + Your matching project outcomes = High-value hire.",
+                    "model_answer": "You should hire me because I have hands-on experience building full-stack applications with your exact stack, React and Flask. Beyond the languages, I have a proven track record of solving technical challenges independently, like implementing API rate handling in my latest project.",
+                    "follow_ups": ["How do I research a company before the interview?", "What if I do not match 100% of the job requirements?", "How do I show passion and enthusiasm?"]
+                }
+            else:
+                parsed = {
+                    "definition": f"Mentor explanation: '{question}' is a core technical concept relating to software development and system architecture.",
+                    "analogy": "Think of it like a well-organized filing cabinet where everything is labeled and easy to retrieve.",
+                    "example": "Basic design pattern or implementation code demonstrating structure.",
+                    "model_answer": f"To explain '{question}' in an interview, I would discuss the primary design rationale, benefits, and how we handle trade-offs in production.",
+                    "follow_ups": ["What are the core benefits of this approach?", "How does this scale?", "What are the common pitfalls?"]
+                }
         else:
             # Clean and parse JSON
             parsed = None
