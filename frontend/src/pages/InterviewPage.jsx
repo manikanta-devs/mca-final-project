@@ -484,6 +484,17 @@ export default function InterviewPage() {
 
   const [answer, setAnswer] = useState('')
 
+  const checkStar = (val) => {
+    const v = val.toLowerCase()
+    return {
+      s: /\b(when|during|working|previous|at\s+company|the\s+problem|background|context|situation|team|project|role)\b/.test(v),
+      t: /\b(tasked|responsible|needed\s+to|had\s+to|goal|objective|challenge|requirements)\b/.test(v),
+      a: /\b(built|implemented|designed|wrote|created|optimized|developed|engineered|refactored|debugged|integrated|migrated|configured|tested|resolved)\b/.test(v),
+      r: /%|\b(percent|increased|reduced|saved|seconds|ms|improvement|boosted|decreased|resulted|optimized\s+by|throughput|latency|metrics)\b/.test(v) || /\b\d+\s*(%|percent|x|seconds|ms|users|requests)\b/.test(v)
+    }
+  }
+  const starStatus = checkStar(answer)
+
 
   const [evaluation, setEvaluation] = useState(null)
 
@@ -3211,24 +3222,51 @@ export default function InterviewPage() {
 
             {/* 2. STAR method description */}
             <div className="space-y-2.5 pb-3 border-b border-white/5">
-              <span className="text-[9px] text-gray-400 font-black uppercase tracking-widest block">STAR Method</span>
-              <p className="text-[10px] text-gray-500 font-semibold mb-1">Use STAR method to structure your answers:</p>
+              <span className="text-[9px] text-gray-400 font-black uppercase tracking-widest block">STAR Method Tracker</span>
+              <p className="text-[10px] text-gray-500 font-semibold mb-1">Your response structure (evaluates as you type):</p>
               <div className="grid grid-cols-2 gap-2 text-[9px] font-extrabold">
-                <div className="bg-slate-950/40 p-2 rounded-xl border border-white/5 flex flex-col gap-0.5">
-                  <span className="text-cyan-400 text-xs font-black">S</span>
-                  <span className="text-gray-400 text-[8px] uppercase">Situation</span>
+                <div className={`p-2.5 rounded-xl border transition-all duration-300 flex flex-col gap-0.5 ${
+                  starStatus.s 
+                    ? 'border-cyan-500/40 bg-cyan-950/20 shadow-[0_0_12px_rgba(6,182,212,0.15)] text-cyan-300' 
+                    : 'border-white/5 bg-slate-950/40 text-gray-500'
+                }`}>
+                  <span className={`text-xs font-black transition-colors ${starStatus.s ? 'text-cyan-400' : 'text-gray-600'}`}>
+                    S {starStatus.s ? '✓' : ''}
+                  </span>
+                  <span className="text-[8px] uppercase tracking-wider">Situation</span>
                 </div>
-                <div className="bg-slate-950/40 p-2 rounded-xl border border-white/5 flex flex-col gap-0.5">
-                  <span className="text-emerald-400 text-xs font-black">T</span>
-                  <span className="text-gray-400 text-[8px] uppercase">Task</span>
+
+                <div className={`p-2.5 rounded-xl border transition-all duration-300 flex flex-col gap-0.5 ${
+                  starStatus.t 
+                    ? 'border-emerald-500/40 bg-emerald-950/20 shadow-[0_0_12px_rgba(16,185,129,0.15)] text-emerald-300' 
+                    : 'border-white/5 bg-slate-950/40 text-gray-500'
+                }`}>
+                  <span className={`text-xs font-black transition-colors ${starStatus.t ? 'text-emerald-400' : 'text-gray-600'}`}>
+                    T {starStatus.t ? '✓' : ''}
+                  </span>
+                  <span className="text-[8px] uppercase tracking-wider">Task</span>
                 </div>
-                <div className="bg-slate-950/40 p-2 rounded-xl border border-white/5 flex flex-col gap-0.5">
-                  <span className="text-amber-400 text-xs font-black">A</span>
-                  <span className="text-gray-400 text-[8px] uppercase">Action</span>
+
+                <div className={`p-2.5 rounded-xl border transition-all duration-300 flex flex-col gap-0.5 ${
+                  starStatus.a 
+                    ? 'border-amber-500/40 bg-amber-950/20 shadow-[0_0_12px_rgba(245,158,11,0.15)] text-amber-300' 
+                    : 'border-white/5 bg-slate-950/40 text-gray-500'
+                }`}>
+                  <span className={`text-xs font-black transition-colors ${starStatus.a ? 'text-amber-400' : 'text-gray-600'}`}>
+                    A {starStatus.a ? '✓' : ''}
+                  </span>
+                  <span className="text-[8px] uppercase tracking-wider">Action</span>
                 </div>
-                <div className="bg-slate-950/40 p-2 rounded-xl border border-white/5 flex flex-col gap-0.5">
-                  <span className="text-fuchsia-400 text-xs font-black">R</span>
-                  <span className="text-gray-400 text-[8px] uppercase">Result</span>
+
+                <div className={`p-2.5 rounded-xl border transition-all duration-300 flex flex-col gap-0.5 ${
+                  starStatus.r 
+                    ? 'border-fuchsia-500/40 bg-fuchsia-950/20 shadow-[0_0_12px_rgba(217,70,239,0.15)] text-fuchsia-300' 
+                    : 'border-white/5 bg-slate-950/40 text-gray-500'
+                }`}>
+                  <span className={`text-xs font-black transition-colors ${starStatus.r ? 'text-fuchsia-400' : 'text-gray-600'}`}>
+                    R {starStatus.r ? '✓' : ''}
+                  </span>
+                  <span className="text-[8px] uppercase tracking-wider">Result</span>
                 </div>
               </div>
             </div>
