@@ -3,7 +3,7 @@ import logging
 import os
 import random
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List
 from config import get_config
 from ai.gemini_service import GeminiService
@@ -51,9 +51,14 @@ class QuizService:
         difficulty: str,
         num_questions: int,
         quiz_type: str = "technical",
-        company: str = "General"
+        company: str = "General",
+        skills: list = None
     ) -> List[dict]:
         if self.gemini.is_available():
+            skills_str = ""
+            if skills and len(skills) > 0:
+                skills_str = f"\nCandidate's Resume Skills: {', '.join(skills)}\nTailor the questions to evaluate these skills where appropriate, keeping them relevant to the topic."
+
             prompt = ""
             if quiz_type == "aptitude":
                 prompt = f"""You are a professional quiz maker and technical interviewer. Generate a JSON list of exactly {num_questions} multiple choice questions for an Aptitude & Reasoning test.
@@ -61,6 +66,7 @@ class QuizService:
                 Topic: {topic.title()}
                 Difficulty Level: {difficulty}
                 Company Pattern: {company}
+                {skills_str}
                 
                 Aptitude domains should cover Quantitative Aptitude, Logical Reasoning, or Verbal Ability.
                 
@@ -78,6 +84,7 @@ class QuizService:
                 
                 Topic: {topic.title()} (e.g. Python, SQL, React, APIs, Runtime Errors, logical errors)
                 Difficulty Level: {difficulty}
+                {skills_str}
                 
                 The questions should present a broken code block, syntax error, logical bug, or failing API response (500 status code, etc.) and ask how to fix it.
                 
@@ -94,6 +101,7 @@ class QuizService:
                 
                 Company: {company}
                 Difficulty Level: {difficulty}
+                {skills_str}
                 
                 The questions should be a realistic blend of coding (Python/SQL), CS fundamentals (OOP/DBMS), debugging, and behavioral/leadership scenarios that matches {company}'s actual interview pattern (e.g. leadership principles for Amazon, algorithms for Google, quantitative/verbal aptitude for TCS/Infosys).
                 
@@ -111,6 +119,7 @@ class QuizService:
                 Topic: {topic.title()} (e.g. Python, SQL, DBMS, OS, Networks, OOP, System Design, REST APIs, Git, Cloud Basics)
                 Difficulty Level: {difficulty}
                 Company context (optional): {company}
+                {skills_str}
                 
                 Questions should test core concepts, output prediction, code snippets, or system design trade-offs.
                 
@@ -122,7 +131,7 @@ class QuizService:
                 5. "option_feedback": ["<feedback for option 1>", "<feedback for option 2>", "<feedback for option 3>", "<feedback for option 4>"]
                 
                 Return ONLY the raw JSON array."""
-
+ 
             try:
                 res = self.gemini.generate_json(prompt)
                 if isinstance(res, list) and len(res) > 0:
@@ -191,10 +200,11 @@ class QuizService:
         quiz_type: str = "technical",
         company: str = "General",
         username: str = "Candidate",
+        skills: list = None
     ) -> dict:
         self._load_from_disk()
         session_id = str(uuid.uuid4())
-        questions = self.build_questions(topic, difficulty, num_questions, quiz_type, company)
+        questions = self.build_questions(topic, difficulty, num_questions, quiz_type, company, skills)
         session = {
             "id": session_id,
             "username": username or "Candidate",
@@ -206,7 +216,7 @@ class QuizService:
             "questions": questions,
             "responses": [],
             "status": "active",
-            "started_at": datetime.utcnow().isoformat(),
+            "started_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             "completed_at": None,
             "results": None,
         }
@@ -271,7 +281,7 @@ class QuizService:
             "correct_option": correct_option,
             "selected_reason": selected_reason,
             "correct_reason": correct_reason,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         }
         if len(session["responses"]) <= question_index:
             session["responses"].append(response)
@@ -328,7 +338,7 @@ class QuizService:
             "accuracy": accuracy,
             "weak_topics": weak_topics,
             "responses": responses,
-            "completed_at": datetime.utcnow().isoformat(),
+            "completed_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         }
 
         session["status"] = "completed"

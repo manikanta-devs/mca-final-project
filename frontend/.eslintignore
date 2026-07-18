@@ -1,2 +1,6 @@
 dist/
 node_modules/
+public/
+android/
+playwright-report/
+test-results/

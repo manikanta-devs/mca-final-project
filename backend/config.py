@@ -17,7 +17,7 @@ class Config:
     ALLOWED_EXTENSIONS = {"pdf", "docx", "txt"}
 
     # API
-    ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
+    ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174").split(",")
 
     # Rate limiting
     RATE_LIMIT_ENABLED = os.getenv("RATE_LIMIT_ENABLED", "false").lower() == "true"
@@ -39,6 +39,7 @@ class Config:
     SESSIONS_FILE = os.path.join(DATA_FOLDER, "sessions.json")
     DATABASE_FILE = os.path.join(DATA_FOLDER, "interviews.db")
     QUIZZES_FILE = os.path.join(DATA_FOLDER, "quizzes.json")
+    DATABASE_URL = os.getenv("DATABASE_URL", "")
 
 
 class DevelopmentConfig(Config):

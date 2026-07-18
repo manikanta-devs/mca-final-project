@@ -1,0 +1,17 @@
+# Caddyfile - Clean open source reverse proxy configuration
+# Run with: caddy run --config Caddyfile
+
+:80 {
+    # Route all API requests to the Flask Waitress backend
+    reverse_proxy /api/* localhost:5000
+
+    # Route all other traffic to the static built frontend assets
+    root * ./frontend/dist
+    file_server {
+        # Fallback to index.html for Single Page App client-side routing
+        try_files {path} {path}/ /index.html
+    }
+
+    # Enable compression
+    encode gzip zstd
+}

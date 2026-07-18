@@ -264,7 +264,53 @@
 
   .dark .sidebar-link.active {
     @apply bg-violet-500/15 text-violet-300;
-    box-shadow: inset 3px 0 0 #8b5cf6;
+    box-shadow: inset 3px 0 0 #8b5cf6, 0 0 24px -4px rgba(139, 92, 246, 0.2);
+  }
+
+  /* Recommended action card pulse ring */
+  .recommended-card {
+    position: relative;
+    overflow: hidden;
+  }
+  .recommended-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(99,102,241,0.35), rgba(168,85,247,0.2), rgba(99,102,241,0.35));
+    background-size: 200% 200%;
+    animation: borderGradientRotate 4s linear infinite;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* Score value gradient text */
+  .score-gradient-cyan {
+    background: linear-gradient(135deg, #22d3ee, #06b6d4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .score-gradient-violet {
+    background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .score-gradient-amber {
+    background: linear-gradient(135deg, #fcd34d, #f59e0b);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .score-gradient-emerald {
+    background: linear-gradient(135deg, #6ee7b7, #10b981);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 }
 
@@ -516,3 +562,72 @@ body.interview-active main {
   height: 100vh !important;
   background-color: #070b13 !important;
 }
+
+/* ============================================
+   PREMIUM GLASS & DECORATIVE STYLES (2027)
+   ============================================ */
+
+.bg-grid-pattern {
+  background-size: 32px 32px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+}
+
+.bg-dot-grid {
+  background-size: 20px 20px;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+}
+
+.dark .bg-dot-grid {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+}
+
+/* Metric card borders + hover glows */
+.metric-card-cyan {
+  border-left: 4px solid #06b6d4 !important;
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+.metric-card-cyan:hover {
+  box-shadow: -4px 0 20px rgba(6, 182, 212, 0.25), 0 8px 30px rgba(6,182,212,0.08) !important;
+}
+.metric-card-violet {
+  border-left: 4px solid #8b5cf6 !important;
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+.metric-card-violet:hover {
+  box-shadow: -4px 0 20px rgba(139, 92, 246, 0.25), 0 8px 30px rgba(139,92,246,0.08) !important;
+}
+.metric-card-amber {
+  border-left: 4px solid #f59e0b !important;
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+.metric-card-amber:hover {
+  box-shadow: -4px 0 20px rgba(245, 158, 11, 0.25), 0 8px 30px rgba(245,158,11,0.08) !important;
+}
+.metric-card-emerald {
+  border-left: 4px solid #10b981 !important;
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+.metric-card-emerald:hover {
+  box-shadow: -4px 0 20px rgba(16, 185, 129, 0.25), 0 8px 30px rgba(16,185,129,0.08) !important;
+}
+
+@keyframes pulseGlowCyan {
+  0%, 100% { box-shadow: 0 0 15px rgba(6, 182, 212, 0.15); }
+  50% { box-shadow: 0 0 25px rgba(6, 182, 212, 0.35); }
+}
+
+@keyframes pulseGlowViolet {
+  0%, 100% { box-shadow: 0 0 15px rgba(139, 92, 246, 0.15); }
+  50% { box-shadow: 0 0 25px rgba(139, 92, 246, 0.35); }
+}
+
+.glow-cyan {
+  animation: pulseGlowCyan 3s ease-in-out infinite;
+}
+
+.glow-violet {
+  animation: pulseGlowViolet 3s ease-in-out infinite;
+}
+

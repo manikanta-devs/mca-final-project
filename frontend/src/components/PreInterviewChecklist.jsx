@@ -21,10 +21,10 @@ export default function PreInterviewChecklist({
   const [micLevel, setMicLevel] = useState(0)
   const [aiStepsComplete, setAiStepsComplete] = useState(false)
   const [aiSteps, setAiSteps] = useState([
-    { id: 1, label: "Reading resume credentials...", status: "pending" },
-    { id: 2, label: "Extracting key technical skills...", status: "pending" },
-    { id: 3, label: "Designing interview blueprint...", status: "pending" },
-    { id: 4, label: "Preparing secure AI session...", status: "pending" },
+    { id: 1, label: "Reviewing your profile...", status: "pending" },
+    { id: 2, label: "Preparing your session...", status: "pending" },
+    { id: 3, label: "Configuring interview environment...", status: "pending" },
+    { id: 4, label: "Connecting to your interviewer...", status: "pending" },
   ])
 
   const videoRef = useRef(null)
@@ -90,7 +90,9 @@ export default function PreInterviewChecklist({
         micAnimationRef.current = requestAnimationFrame(updateMeter)
       }
       updateMeter()
-    } catch (e) { }
+    } catch (e) {
+      // Audio meter is best-effort; keep the checklist usable if setup fails.
+    }
   }
 
   const testSpeaker = () => {
@@ -149,6 +151,8 @@ export default function PreInterviewChecklist({
 
   const personaImage = interviewerPersona === "marcus"
     ? "/interviewers/marcus_rodriguez.png"
+    : interviewerPersona === "nagma_hr"
+    ? "/interviewers/nagma_hr.png"
     : "/interviewers/sarah_chen.png"
 
   return (
@@ -331,7 +335,9 @@ export default function PreInterviewChecklist({
               <img src={personaImage} alt={interviewerName} className="w-10 h-10 rounded-xl object-cover" />
               <div>
                 <p className="text-xs font-bold text-white">{interviewerName}</p>
-                <p className="text-[10px] text-indigo-300 font-medium">{interviewerPersona === "sarah" ? "Senior Recruiter" : "HR Director"}</p>
+                <p className="text-[10px] text-indigo-300 font-medium">
+                  {interviewerPersona === "nagma_hr" ? "Gemini AI Recruiter" : interviewerPersona === "sarah" ? "Senior Recruiter" : "HR Director"}
+                </p>
               </div>
               <div className="ml-auto shrink-0 flex items-center gap-1.5 bg-indigo-500/10 border border-indigo-400/20 px-2 py-1 rounded-lg text-[9px] font-black uppercase text-indigo-300 tracking-wider">
                 <Check className="w-3.5 h-3.5 text-indigo-400" /> Ready

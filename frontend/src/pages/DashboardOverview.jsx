@@ -5,7 +5,7 @@ import {
   FileText, Mic, Brain, ArrowRight,
   TrendingUp, Target, Clock, Award, ChevronRight,
   Trophy, Flame, Check, AlertTriangle, Shield, Play, Map,
-  Briefcase, Zap
+  Briefcase, Zap, Video
 } from 'lucide-react'
 import { getAnalyticsSummary, getAnalyticsSessions, getQuizSessions, getDashboardInsights } from '../api/client'
 import { useApp } from '../context/AppContext'
@@ -110,6 +110,7 @@ export default function DashboardOverview() {
   const baseActions = [
     { id: 'quiz', icon: Brain, label: 'Start Topic Quiz', desc: hasData ? `Practice focus: ${topFocus}.` : 'Calibrate your readiness with a short drill.', path: '/dashboard/quiz', iconColor: 'text-orange-500 dark:text-orange-400', isRecommended: !resumeData },
     { id: 'interview', icon: Briefcase, label: 'Mock Interview', desc: 'Start a mock interview session', path: '/dashboard/interview', iconColor: 'text-indigo-650 dark:text-cyan-400', isRecommended: false },
+    { id: 'video-interview', icon: Video, label: '3D Mock Interview', desc: 'Practice with immersive 3D digital avatars', path: '/dashboard/video-interview', iconColor: 'text-cyan-500 dark:text-cyan-400', isRecommended: false },
     { id: 'resume', icon: FileText, label: 'Resume Coach', desc: 'Audited checklist and scanner', path: '/dashboard/resume', iconColor: 'text-emerald-600 dark:text-emerald-400', isRecommended: false },
     { id: 'coach', icon: Mic, label: 'Communication Coach', desc: 'Improve speaking and structure', path: '/dashboard/coach', iconColor: 'text-fuchsia-600 dark:text-fuchsia-400', isRecommended: false },
   ]
@@ -122,6 +123,7 @@ export default function DashboardOverview() {
       actions = [
         { id: 'coach', icon: Mic, label: 'Communication Drill', desc: 'Pacing & filler word counts need tuning.', path: '/dashboard/coach', iconColor: 'text-fuchsia-600 dark:text-fuchsia-400', isRecommended: true },
         { id: 'interview', icon: Briefcase, label: 'Mock Interview', desc: 'Start a mock interview session', path: '/dashboard/interview', iconColor: 'text-indigo-650 dark:text-cyan-400', isRecommended: false },
+        { id: 'video-interview', icon: Video, label: '3D Mock Interview', desc: 'Immersive avatar technical session', path: '/dashboard/video-interview', iconColor: 'text-cyan-500 dark:text-cyan-400', isRecommended: false },
         { id: 'quiz', icon: Brain, label: 'Today\'s Quiz', desc: 'Sharpen CS fundamentals with drills', path: '/dashboard/quiz', iconColor: 'text-orange-500 dark:text-orange-400', isRecommended: false },
         { id: 'resume', icon: FileText, label: 'Resume Coach', desc: 'Audited checklist and scanner', path: '/dashboard/resume', iconColor: 'text-emerald-600 dark:text-emerald-400', isRecommended: false },
       ]
@@ -166,21 +168,21 @@ export default function DashboardOverview() {
                 <React.Fragment key={step.id}>
                   <div className={clsx(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-mono uppercase tracking-widest border transition-all",
-                    step.status === 'completed' && "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-405",
+                    step.status === 'completed' && "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400",
                     step.status === 'active' && "bg-indigo-500/10 dark:bg-indigo-500/20 border-indigo-500/20 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-300 shadow-md dark:shadow-[0_0_12px_rgba(99,102,241,0.1)]",
                     step.status === 'locked' && "bg-black/[0.02] dark:bg-white/[0.02] border-black/5 dark:border-white/5 text-gray-400 dark:text-gray-600 opacity-60"
                   )}>
                     {step.status === 'completed' ? (
                       <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                     ) : step.status === 'active' ? (
-                      <Zap className="w-3 h-3 text-indigo-550 dark:text-indigo-400 animate-pulse" />
+                      <Zap className="w-3 h-3 text-indigo-500 dark:text-indigo-400 animate-pulse" />
                     ) : (
                       <Shield className="w-3 h-3 text-gray-400 dark:text-gray-600" />
                     )}
                     <span>{step.label}</span>
                   </div>
                   {idx < workflowSteps.length - 1 && (
-                    <ChevronRight className="w-3 h-3 text-slate-350 dark:text-gray-700 shrink-0" />
+                    <ChevronRight className="w-3 h-3 text-slate-300 dark:text-gray-700 shrink-0" />
                   )}
                 </React.Fragment>
               ))}
@@ -202,40 +204,19 @@ export default function DashboardOverview() {
               </button>
             </div>
 
-            {/* Diagnostics Stats */}
-            <div className="grid grid-cols-3 gap-4 bg-slate-950/5 dark:bg-slate-950/20 border border-black/5 dark:border-white/5 p-3.5 rounded-2xl font-mono text-center">
-              <div>
-                <div className="text-md font-black text-indigo-600 dark:text-indigo-400">
-                  {resumeData?.score || 0}%
-                </div>
-                <div className="text-[8px] text-slate-450 dark:text-gray-500 uppercase tracking-wider mt-0.5">Resume ATS</div>
-              </div>
-              <div>
-                <div className="text-md font-black text-emerald-600 dark:text-emerald-400">
-                  {overallReadiness}%
-                </div>
-                <div className="text-[8px] text-slate-450 dark:text-gray-500 uppercase tracking-wider mt-0.5">Ready Index</div>
-              </div>
-              <div>
-                <div className="text-md font-black text-cyan-600 dark:text-cyan-400">
-                  {practiceTime}m
-                </div>
-                <div className="text-[8px] text-slate-450 dark:text-gray-500 uppercase tracking-wider mt-0.5">Time Spent</div>
-              </div>
-            </div>
+            {/* Circular progress gauge with glow */}
           </div>
 
-          {/* Progress Circular gauge */}
           <div className="flex flex-col justify-center items-center bg-slate-950/5 dark:bg-slate-950/40 border border-black/5 dark:border-white/5 p-5 rounded-2xl">
             <span className="text-[9px] font-mono tracking-widest text-slate-400 dark:text-gray-500 uppercase mb-3">Overall Progress</span>
             <div className="relative w-28 h-28 flex items-center justify-center">
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                 <circle cx="50" cy="50" r="40" fill="transparent" stroke="rgba(0,0,0,0.03)" strokeWidth="6" />
-                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#6366f1" strokeWidth="6" strokeDasharray={251} strokeDashoffset={251 - (251 * progressPercent) / 100} strokeLinecap="round" />
+                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#06b6d4" strokeWidth="6" strokeDasharray={251} strokeDashoffset={251 - (251 * progressPercent) / 100} strokeLinecap="round" className="glow-cyan" />
               </svg>
               <div className="absolute text-center">
                 <div className="text-xl font-black text-slate-900 dark:text-white">{progressPercent}%</div>
-                <div className="text-[8px] text-slate-450 dark:text-gray-500 font-bold uppercase tracking-wider font-mono">Mission</div>
+                <div className="text-[8px] text-slate-400 dark:text-gray-500 font-bold uppercase tracking-wider font-mono">Mission</div>
               </div>
             </div>
             <button
@@ -248,6 +229,50 @@ export default function DashboardOverview() {
           </div>
         </div>
       </motion.div>
+
+      {/* --- STANDALONE 4 METRIC CARDS WITH COLORED BORDERS --- */}
+      <motion.div variants={fadeUp} className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="card p-4 metric-card-cyan hover-lift flex flex-col justify-between h-24">
+          <div className="flex justify-between items-center text-slate-400 dark:text-gray-500">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider">Resume ATS</span>
+            <FileText className="w-4 h-4 text-cyan-400" />
+          </div>
+          <div className="text-2xl font-black score-gradient-cyan mt-1">
+            {resumeData?.score || 0}%
+          </div>
+        </div>
+
+        <div className="card p-4 metric-card-violet hover-lift flex flex-col justify-between h-24">
+          <div className="flex justify-between items-center text-slate-400 dark:text-gray-500">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider">Ready Index</span>
+            <Target className="w-4 h-4 text-violet-400" />
+          </div>
+          <div className="text-2xl font-black score-gradient-violet mt-1">
+            {overallReadiness}%
+          </div>
+        </div>
+
+        <div className="card p-4 metric-card-amber hover-lift flex flex-col justify-between h-24">
+          <div className="flex justify-between items-center text-slate-450 dark:text-gray-500">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider">Practice Time</span>
+            <Clock className="w-4 h-4 text-amber-400" />
+          </div>
+          <div className="text-2xl font-black score-gradient-amber mt-1">
+            {practiceTime}m
+          </div>
+        </div>
+
+        <div className="card p-4 metric-card-emerald hover-lift flex flex-col justify-between h-24">
+          <div className="flex justify-between items-center text-slate-450 dark:text-gray-500">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider">Active Streak</span>
+            <Flame className="w-4 h-4 text-emerald-400" />
+          </div>
+          <div className="text-2xl font-black score-gradient-emerald mt-1">
+            {streakDays}d
+          </div>
+        </div>
+      </motion.div>
+
 
       {/* Adaptive engine & alerts */}
       <motion.div variants={fadeUp}>
@@ -264,7 +289,10 @@ export default function DashboardOverview() {
         <div className="space-y-6">
           {/* Smart Quick Actions */}
           <div className="card p-5 space-y-4">
-            <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest font-mono border-b border-black/5 dark:border-white/5 pb-2">Smart Action Nodes</h3>
+            <div className="flex items-center gap-2 border-b border-black/5 dark:border-white/5 pb-2">
+              <div className="w-1.5 h-4 rounded-full bg-gradient-to-b from-violet-500 to-indigo-500" />
+              <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest font-mono">Smart Action Nodes</h3>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {actions.map(action => (
                 <button
@@ -273,7 +301,7 @@ export default function DashboardOverview() {
                   className={clsx(
                     'text-left p-4 rounded-2xl border transition-all relative group flex flex-col justify-between h-36',
                     action.isRecommended
-                      ? 'border-indigo-500/25 bg-indigo-500/[0.02] dark:bg-indigo-600/[0.01]'
+                      ? 'recommended-card border-indigo-500/25 bg-indigo-500/[0.02] dark:bg-indigo-600/[0.01]'
                       : 'border-black/5 dark:border-white/5 bg-transparent hover:border-black/10 dark:hover:border-white/10'
                   )}
                 >
@@ -301,8 +329,11 @@ export default function DashboardOverview() {
 
           {/* Consistency Heatmap */}
           <div className="card p-5 space-y-4">
-            <div className="flex justify-between items-center border-b border-black/5 dark:border-white/5 pb-2">
-              <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest font-mono">Intensity Matrix</h3>
+            <div className="flex items-center gap-2 justify-between border-b border-black/5 dark:border-white/5 pb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-4 rounded-full bg-gradient-to-b from-cyan-400 to-indigo-500" />
+                <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest font-mono">Intensity Matrix</h3>
+              </div>
               <span className="text-[9px] text-slate-400 dark:text-gray-500 font-mono">LAST 100 DAYS</span>
             </div>
             
@@ -390,7 +421,10 @@ export default function DashboardOverview() {
 
           {/* Badges / Achievements Panel */}
           <div className="card p-5 space-y-4">
-            <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest font-mono border-b border-black/5 dark:border-white/5 pb-2">Achievements Node</h3>
+            <div className="flex items-center gap-2 border-b border-black/5 dark:border-white/5 pb-2">
+              <div className="w-1.5 h-4 rounded-full bg-gradient-to-b from-amber-400 to-orange-500" />
+              <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest font-mono">Achievements Node</h3>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               {achievements.map(badge => (
                 <div

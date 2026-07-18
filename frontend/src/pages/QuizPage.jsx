@@ -11,6 +11,7 @@ import { clsx } from 'clsx'
 import { startQuiz, submitQuizAnswer, completeQuiz, getQuizSessions } from '../api/client'
 import LoadingSpinner from '../components/LoadingSpinner'
 import AdvancedToolPanel from '../components/AdvancedToolPanel'
+import useAppStore from '../store/useAppStore'
 
 const COMPANIES = [
   { id: 'google', name: 'Google', focus: 'Algorithms & System Design', difficulty: 'hard' },
@@ -57,6 +58,7 @@ const DEBUG_LANGUAGES = [
 ]
 
 export default function QuizPage() {
+  const { resumeData } = useAppStore()
   const location = useLocation()
   const [loading, setLoading] = useState(true)
   const [starting, setStarting] = useState(false)
@@ -206,7 +208,8 @@ export default function QuizPage() {
         topic: topicParam,
         difficulty: difficultyParam,
         num_questions: numQuestions,
-        company: companyParam
+        company: companyParam,
+        skills: resumeData?.skills?.all || []
       })
 
       setSessionId(data.session_id)

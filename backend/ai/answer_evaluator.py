@@ -70,48 +70,8 @@ class AnswerEvaluator:
         interviewer_name: str = "Sarah Chen",
     ) -> dict:
         """Evaluate an answer and return detailed feedback with adaptive fields"""
-        # Check for God Mode override
-        if emotion_metrics and (emotion_metrics.get("god_mode") or emotion_metrics.get("godmode")):
-            return {
-                "technical_score": 98,
-                "clarity_score": 96,
-                "completeness_score": 95,
-                "relevance_score": 97,
-                "depth_score": 96,
-                "overall_score": 97,
-                "topic": question.get("topic", "General"),
-                "strong_areas": ["Outstanding technical depth", "Flawless communication clarity", "Excellent structural reasoning"],
-                "weak_areas": [],
-                "feedback": "Outstanding response! You demonstrated exceptional mastery of the topic, structuring your answer perfectly with clear, precise details.",
-                "ideal_answer_hints": "N/A",
-                "confidence_score": 98,
-                "structure_score": 96,
-                "star_rubric": {
-                    "situation": 98,
-                    "task": 96,
-                    "action": 97,
-                    "result": 98
-                },
-                "priority_focus": "None",
-                "suggested_next_action": "Keep up the excellent work.",
-                "follow_up_prompt": "Excellent. Let's move to the next question.",
-                "coach_notes": ["Perfect response matching senior engineer guidelines"],
-                "live_tips": ["Outstanding pacing and tone"],
-                "difficulty_adjustment": "maintain",
-                "speaking_pace_wpm": voice_metrics.get("speaking_pace_wpm", 140) if voice_metrics else 140,
-                "filler_word_count": voice_metrics.get("filler_count", 0) if voice_metrics else 0,
-                "filler_word_ratio": voice_metrics.get("filler_ratio", 0) if voice_metrics else 0,
-                "voice_delivery_score": 98,
-                "voice_feedback": "Perfect tone, stable pitch, and zero filler words.",
-                "emotion_label": "Focused",
-                "engagement_score": 98,
-                "eye_contact_score": 98,
-                "posture_score": 96,
-                "posture_label": "Good",
-                "emotion_feedback": "Excellent focus and professional presence.",
-                "sentiment": "Positive",
-                "interviewer_response": "Excellent, that was a strong and well-structured answer. Let us continue with the next question.",
-            }
+        # NOTE: God mode / score bypass was REMOVED (security vulnerability — client-supplied
+        # emotion_metrics.god_mode could bypass all AI evaluation and return fake perfect scores)
 
         cleaned_answer = answer.strip().lower().replace(".", "").replace("!", "").replace("?", "")
         words = cleaned_answer.split()

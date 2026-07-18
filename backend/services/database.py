@@ -1,4 +1,4 @@
-"""SQLite database layer for interview session persistence."""
+"""Database persistence layer supporting SQLite and PostgreSQL dual drivers."""
 
 import sqlite3
 import json
@@ -10,19 +10,85 @@ from config import get_config
 logger = logging.getLogger(__name__)
 config = get_config()
 DB_PATH = config.DATABASE_FILE
+DB_URL = config.DATABASE_URL
+DB_TYPE = "postgresql" if (DB_URL.startswith("postgres://") or DB_URL.startswith("postgresql://")) else "sqlite"
 
 _local = threading.local()
 
+class ConnectionWrapper:
+    """Wrapper class providing standardized DB-API connection interface for both drivers."""
+    def __init__(self, conn, db_type="sqlite"):
+        self.conn = conn
+        self.db_type = db_type
 
-def _get_conn() -> sqlite3.Connection:
-    """Return a thread-local SQLite connection."""
+    def execute(self, sql, params=None):
+        # 1. Parameter placeholder rewriting
+        if self.db_type == "postgresql":
+            sql = sql.replace("?", "%s")
+            
+            # Translate SQLite "INSERT OR REPLACE" to PostgreSQL upsert on Conflict
+            if "INSERT OR REPLACE INTO sessions" in sql:
+                sql = """
+                    INSERT INTO sessions (id, username, candidate_name, role, interview_format, difficulty,
+                    panel_mode, status, started_at, completed_at, resume_data, results)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    ON CONFLICT (id) DO UPDATE SET
+                        username = EXCLUDED.username,
+                        candidate_name = EXCLUDED.candidate_name,
+                        role = EXCLUDED.role,
+                        interview_format = EXCLUDED.interview_format,
+                        difficulty = EXCLUDED.difficulty,
+                        panel_mode = EXCLUDED.panel_mode,
+                        status = EXCLUDED.status,
+                        started_at = EXCLUDED.started_at,
+                        completed_at = EXCLUDED.completed_at,
+                        resume_data = EXCLUDED.resume_data,
+                        results = EXCLUDED.results
+                """
+            # Translate SQLite schemas AUTOINCREMENT to PostgreSQL SERIAL identity types
+            if "PRIMARY KEY AUTOINCREMENT" in sql:
+                sql = sql.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
+                
+        # 2. Get cursor and execute query
+        if self.db_type == "postgresql":
+            from psycopg2.extras import RealDictCursor
+            cursor = self.conn.cursor(cursor_factory=RealDictCursor)
+        else:
+            cursor = self.conn.cursor()
+            
+        if params is not None:
+            cursor.execute(sql, params)
+        else:
+            cursor.execute(sql)
+        return cursor
+
+    def commit(self):
+        self.conn.commit()
+
+    def rollback(self):
+        self.conn.rollback()
+
+    def close(self):
+        self.conn.close()
+
+
+def _get_conn() -> ConnectionWrapper:
+    """Return a thread-local DB connection wrapper."""
     if not hasattr(_local, "conn") or _local.conn is None:
-        os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-        _local.conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-        _local.conn.execute("PRAGMA journal_mode=WAL")
-        _local.conn.execute("PRAGMA busy_timeout=5000")
-        _local.conn.execute("PRAGMA foreign_keys=ON")
-        _local.conn.row_factory = sqlite3.Row
+        if DB_TYPE == "postgresql":
+            import psycopg2
+            # Connect to PostgreSQL using standard psycopg2 driver
+            raw_conn = psycopg2.connect(DB_URL)
+            _local.conn = ConnectionWrapper(raw_conn, db_type="postgresql")
+            logger.info("✓ Connected to PostgreSQL production database")
+        else:
+            os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+            raw_conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+            raw_conn.execute("PRAGMA journal_mode=WAL")
+            raw_conn.execute("PRAGMA busy_timeout=5000")
+            raw_conn.execute("PRAGMA foreign_keys=ON")
+            raw_conn.row_factory = sqlite3.Row
+            _local.conn = ConnectionWrapper(raw_conn, db_type="sqlite")
     return _local.conn
 
 
@@ -32,13 +98,26 @@ def init_db():
     
     # Schema check/migration: if old table contains "questions" column, drop it
     try:
-        cursor = conn.execute("PRAGMA table_info(sessions)")
-        columns = [c[1] for c in cursor.fetchall()]
+        columns = []
+        if DB_TYPE == "postgresql":
+            cursor = conn.execute(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'sessions'"
+            )
+            columns = [c["column_name"] for c in cursor.fetchall()]
+        else:
+            cursor = conn.execute("PRAGMA table_info(sessions)")
+            columns = [c[1] for c in cursor.fetchall()]
+            
         if columns and "questions" in columns:
             logger.info("Detected old database schema. Dropping old tables...")
-            conn.execute("DROP TABLE IF EXISTS sessions")
-            conn.execute("DROP TABLE IF EXISTS session_questions")
-            conn.execute("DROP TABLE IF EXISTS session_answers")
+            if DB_TYPE == "postgresql":
+                conn.execute("DROP TABLE IF EXISTS sessions CASCADE")
+                conn.execute("DROP TABLE IF EXISTS session_questions CASCADE")
+                conn.execute("DROP TABLE IF EXISTS session_answers CASCADE")
+            else:
+                conn.execute("DROP TABLE IF EXISTS sessions")
+                conn.execute("DROP TABLE IF EXISTS session_questions")
+                conn.execute("DROP TABLE IF EXISTS session_answers")
             conn.commit()
     except Exception as e:
         logger.debug(f"Schema migration check bypassed: {e}")
@@ -72,8 +151,16 @@ def init_db():
 
     # Migration: Add username column to sessions if not present
     try:
-        cursor = conn.execute("PRAGMA table_info(sessions)")
-        columns = [c[1] for c in cursor.fetchall()]
+        columns = []
+        if DB_TYPE == "postgresql":
+            cursor = conn.execute(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'sessions'"
+            )
+            columns = [c["column_name"] for c in cursor.fetchall()]
+        else:
+            cursor = conn.execute("PRAGMA table_info(sessions)")
+            columns = [c[1] for c in cursor.fetchall()]
+            
         if columns and "username" not in columns:
             logger.info("Migrating sessions table: adding 'username' column...")
             conn.execute("ALTER TABLE sessions ADD COLUMN username TEXT DEFAULT 'Candidate'")
@@ -267,15 +354,34 @@ def get_all_sessions(username: str = None) -> list[dict]:
 def delete_session(session_id: str):
     """Delete a session by ID."""
     conn = _get_conn()
-    conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
-    conn.commit()
+    try:
+        conn.execute("DELETE FROM session_questions WHERE session_id = ?", (session_id,))
+        conn.execute("DELETE FROM session_answers WHERE session_id = ?", (session_id,))
+        conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Failed to delete session {session_id}: {e}")
+        raise e
 
 
-def delete_all():
-    """Delete all sessions."""
+def delete_all(username=None):
+    """Delete all sessions for a given user."""
+    if not username:
+        raise ValueError("delete_all requires a username; refusing to run an unscoped delete.")
     conn = _get_conn()
-    conn.execute("DELETE FROM sessions")
-    conn.commit()
+    try:
+        rows = conn.execute("SELECT id FROM sessions WHERE username = ?", (username,)).fetchall()
+        for r in rows:
+            sid = r[0] if isinstance(r, tuple) else r["id"]
+            conn.execute("DELETE FROM session_questions WHERE session_id = ?", (sid,))
+            conn.execute("DELETE FROM session_answers WHERE session_id = ?", (sid,))
+        conn.execute("DELETE FROM sessions WHERE username = ?", (username,))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Failed to delete all sessions for user {username}: {e}")
+        raise e
 
 
 def create_user(username: str, password_hash: str) -> bool:
@@ -286,10 +392,10 @@ def create_user(username: str, password_hash: str) -> bool:
         if row:
             return False
         
-        from datetime import datetime
+        from datetime import datetime, timezone
         conn.execute(
             "INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)",
-            (username, password_hash, datetime.utcnow().isoformat())
+            (username, password_hash, datetime.now(timezone.utc).replace(tzinfo=None).isoformat())
         )
         conn.commit()
         return True
@@ -306,6 +412,17 @@ def get_user(username: str) -> dict | None:
     if row:
         return dict(row)
     return None
+
+
+def get_all_users_count() -> int:
+    """Return total number of registered users."""
+    conn = _get_conn()
+    try:
+        row = conn.execute("SELECT COUNT(*) FROM users").fetchone()
+        return row[0] if row else 0
+    except Exception as e:
+        logger.error(f"Failed to count users: {e}")
+        return 0
 
 
 # Auto-initialize on import

@@ -613,6 +613,6 @@ class AnalyticsService:
             days.append({"date": day.isoformat(), "count": count, "level": min(count, 4)})
         return [days[i : i + 7] for i in range(0, len(days), 7)]
 
-    def clear_all(self):
-        """Clear all data."""
-        db.delete_all()
+    def clear_all(self, username=None):
+        """Clear all data for a given user."""
+        db.delete_all(username=username)

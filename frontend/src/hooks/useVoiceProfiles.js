@@ -1,4 +1,4 @@
-/**
+﻿/**
  * useVoiceProfiles.js — Centralized voice profile registry.
  * Extracted from InterviewPage.jsx to eliminate duplication.
  * Single source of truth for all TTS voice characteristics.
@@ -37,6 +37,24 @@ export const VOICE_PROFILES = {
     ],
     rate: 0.88,
     pitch: 0.95,
+    lang: 'en-US',
+  },
+  nagma_hr: {
+    name: 'nagma_hr',
+    displayName: 'Nagma HR',
+    gender: 'female',
+    preferredVoices: [
+      'Microsoft Zira',
+      'Google UK English Female',
+      'Samantha',
+      'Victoria',
+      'Karen',
+      'Moira',
+      'Fiona',
+      'en-GB-Standard-A',
+    ],
+    rate: 0.90,
+    pitch: 1.05,
     lang: 'en-US',
   },
 }

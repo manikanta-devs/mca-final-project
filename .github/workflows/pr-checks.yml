@@ -1,0 +1,86 @@
+name: TalentForge CI — PR Checks
+
+on:
+  pull_request:
+    branches: [main, master]
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # ─── Backend Tests ──────────────────────────────────────────────────────
+  backend-tests:
+    name: Backend · pytest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+          python -m spacy download en_core_web_sm
+
+      - name: Run tests with coverage
+        env:
+          FLASK_ENV: testing
+          SECRET_KEY: ci-test-secret-key-not-for-production
+        run: |
+          pytest ../tests/ -v --tb=short --cov=. --cov-report=term-missing
+
+  # ─── Frontend Build & Lint ──────────────────────────────────────────────
+  frontend-checks:
+    name: Frontend · build + lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: ESLint
+        run: npm run lint --if-present
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: ""
+
+  # ─── Docker Build Smoke Test ────────────────────────────────────────────
+  docker-build:
+    name: Docker · build smoke test
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-checks]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build -t talentforge-backend:pr backend/
+
+      - name: Build frontend image
+        run: docker build -t talentforge-frontend:pr frontend/

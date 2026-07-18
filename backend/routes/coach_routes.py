@@ -3,6 +3,7 @@ import copy
 import json
 from flask import Blueprint, request, jsonify, current_app
 from utils.auth_utils import token_required
+from utils.limiter import limiter
 from ai.gemini_service import GeminiService
 from services.analytics_service import AnalyticsService
 from ai.roadmap_defaults import PREBUILT_ROADMAPS, DEFAULT_ROADMAP
@@ -87,6 +88,7 @@ def normalize_roadmap(parsed_json: dict) -> dict:
 
 @coach_bp.route("/coach/ask", methods=["POST"])
 @token_required
+@limiter.limit("15 per minute")
 def coach_ask():
     """Ask the AI Career Mentor a question"""
     try:
@@ -175,6 +177,7 @@ def coach_ask():
 
 @coach_bp.route("/coach/generate-roadmap", methods=["POST"])
 @token_required
+@limiter.limit("10 per minute")
 def coach_roadmap():
     """Generate a personalized study roadmap"""
     try:
@@ -285,6 +288,7 @@ def coach_roadmap():
 
 @coach_bp.route("/coach/critique-speech", methods=["POST"])
 @token_required
+@limiter.limit("15 per minute")
 def coach_critique():
     """Critique candidate spoken speech sandbox style"""
     try:

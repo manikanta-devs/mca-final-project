@@ -81,13 +81,12 @@ def create_app():
     )
 
     # ─── Rate Limiting ──────────────────────────────────────
-    limiter = Limiter(  # noqa: F841
-        app=app,
-        key_func=get_remote_address,
-        default_limits=[config_obj.RATE_LIMIT_DEFAULT, config_obj.RATE_LIMIT_HOURLY],
-        storage_uri="memory://",
-        enabled=config_obj.RATE_LIMIT_ENABLED,
-    )
+    app.config["RATELIMIT_ENABLED"] = config_obj.RATE_LIMIT_ENABLED
+    app.config["RATELIMIT_DEFAULTS"] = [config_obj.RATE_LIMIT_DEFAULT, config_obj.RATE_LIMIT_HOURLY]
+    app.config["RATELIMIT_STORAGE_URI"] = os.getenv("RATELIMIT_STORAGE_URI", "memory://")
+    
+    from utils.limiter import limiter
+    limiter.init_app(app)
 
     # ─── Security Headers ───────────────────────────────────
     @app.after_request
@@ -148,72 +147,17 @@ def create_app():
     from routes.quiz_routes import quiz_bp
     from routes.coach_routes import coach_bp
     from routes.video_interview import video_interview_bp
+    from routes.interview_realtime_routes import realtime_bp
+    from routes.auth_routes import auth_bp
 
+    app.register_blueprint(auth_bp, url_prefix="/api")
     app.register_blueprint(resume_bp, url_prefix="/api")
     app.register_blueprint(interview_bp, url_prefix="/api")
     app.register_blueprint(analytics_bp, url_prefix="/api")
     app.register_blueprint(quiz_bp, url_prefix="/api")
     app.register_blueprint(coach_bp, url_prefix="/api")
     app.register_blueprint(video_interview_bp, url_prefix="/api")
-
-    # ─── Auth endpoints ─────────────────────────────────────
-    from services.database import create_user, get_user
-    from werkzeug.security import generate_password_hash, check_password_hash
-
-    def hash_password(password: str) -> str:
-        return generate_password_hash(password)
-
-    def verify_password(password: str, hashed_password: str) -> bool:
-        if ":" in hashed_password and not hashed_password.startswith("scrypt:") and not hashed_password.startswith("pbkdf2:"):
-            # Legacy SHA-256 fallback for backward compatibility
-            try:
-                salt, pwd_hash = hashed_password.split(':')
-                legacy_hash = hashlib.sha256((password + salt).encode('utf-8')).hexdigest()
-                return f"{salt}:{legacy_hash}" == hashed_password
-            except ValueError:
-                return False
-        return check_password_hash(hashed_password, password)
-
-    @app.route("/api/auth/register", methods=["POST"])
-    def register():
-        data = flask_request.get_json() or {}
-        username = data.get("username", "").strip()
-        password = data.get("password", "").strip()
-
-        if not username or not password:
-            return jsonify({"error": "Username and password are required"}), 400
-
-        if len(password) < 6:
-            return jsonify({"error": "Password must be at least 6 characters"}), 400
-
-        pwd_hash = hash_password(password)
-        success = create_user(username, pwd_hash)
-        if not success:
-            return jsonify({"error": "Username already exists"}), 409
-
-        return jsonify({"message": "User registered successfully"}), 201
-
-    @app.route("/api/auth/login", methods=["POST"])
-    def login():
-        data = flask_request.get_json() or {}
-        username = data.get("username", "").strip()
-        password = data.get("password", "").strip()
-
-        if not username or not password:
-            return jsonify({"error": "Username and password are required"}), 400
-
-        user = get_user(username)
-        if not user or not verify_password(password, user["password_hash"]):
-            return jsonify({"error": "Invalid username or password"}), 401
-
-        from utils.auth_utils import sign_token
-        secret = app.config.get("SECRET_KEY", "dev-secret-key-change-in-prod-secure-128bits-key")
-        token = sign_token({"username": username}, secret=secret)
-        return jsonify({
-            "message": "Login successful",
-            "token": token,
-            "user": {"username": username}
-        }), 200
+    app.register_blueprint(realtime_bp, url_prefix="/api")
 
     # ─── Health endpoint ─────────────────────────────────────
     _health_gemini_service = None
@@ -255,6 +199,69 @@ def create_app():
                 ],
             }
         )
+
+    # ─── Metrics & Monitoring ────────────────────────────────
+    from utils.auth_utils import token_required as _token_required
+    request_counter = 0
+
+    @app.before_request
+    def before_request():
+        nonlocal request_counter
+        request_counter += 1
+
+    @app.route("/metrics")
+    @_token_required
+    def metrics():
+        # Admin-only: only the 'admin' user can view metrics
+        if getattr(flask_request, 'username', None) != 'admin':
+            return jsonify({"error": "Forbidden"}), 403
+        import psutil
+        from services.database import DB_PATH, get_all_users_count
+        
+        db_size_bytes = 0
+        if os.path.exists(DB_PATH):
+            db_size_bytes = os.path.getsize(DB_PATH)
+            
+        process = psutil.Process(os.getpid())
+        mem_info = process.memory_info()
+        cpu_percent = process.cpu_percent(interval=None)
+        
+        user_count = get_all_users_count()
+
+        metrics_data = [
+            f"# HELP talentforge_requests_total Total requests processed.",
+            f"# TYPE talentforge_requests_total counter",
+            f"talentforge_requests_total {request_counter}",
+            f"# HELP talentforge_process_cpu_usage Process CPU utilization percentage.",
+            f"# TYPE talentforge_process_cpu_usage gauge",
+            f"talentforge_process_cpu_usage {cpu_percent}",
+            f"# HELP talentforge_process_memory_bytes Process resident memory size in bytes.",
+            f"# TYPE talentforge_process_memory_bytes gauge",
+            f"talentforge_process_memory_bytes {mem_info.rss}",
+            f"# HELP talentforge_db_size_bytes SQLite database file size in bytes.",
+            f"# TYPE talentforge_db_size_bytes gauge",
+            f"talentforge_db_size_bytes {db_size_bytes}",
+            f"# HELP talentforge_registered_users_total Total registered candidate accounts.",
+            f"# TYPE talentforge_registered_users_total gauge",
+            f"talentforge_registered_users_total {user_count}"
+        ]
+        return "\n".join(metrics_data) + "\n", 200, {"Content-Type": "text/plain; version=0.0.4"}
+
+    @app.route("/backup", methods=["POST"])
+    @_token_required
+    def trigger_backup():
+        if flask_request.username != "admin":
+            return jsonify({"error": "Forbidden"}), 403
+        from services.backup_service import perform_backup
+        from datetime import datetime, timezone
+        backup_path = perform_backup()
+        if backup_path:
+            return jsonify({
+                "message": "Database backup completed successfully",
+                "backup_file": os.path.basename(backup_path),
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }), 200
+        return jsonify({"error": "Failed to create database backup"}), 500
 
     # ─── Error handlers ──────────────────────────────────────
     @app.errorhandler(400)

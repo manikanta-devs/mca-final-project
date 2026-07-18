@@ -66,6 +66,10 @@ export default {
         'gradient-y':    'gradientY 8s ease infinite',
         'spin-slow':     'spin 3s linear infinite',
         'ping-slow':     'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite',
+        // Interview room tile ring animations
+        'speakingPulse': 'speakingPulse 1.8s ease-in-out infinite',
+        'listeningPulse':'listeningPulse 2.2s ease-in-out infinite',
+        'thinkingPulse': 'thinkingPulse 2.8s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
@@ -107,6 +111,19 @@ export default {
         gradientY: {
           '0%, 100%': { backgroundPosition: '50% 0%' },
           '50%':      { backgroundPosition: '50% 100%' },
+        },
+        // ── Interview room speaking ring pulses ─────────────────────────────
+        speakingPulse: {
+          '0%, 100%': { boxShadow: '0 0 18px rgba(34,197,94,0.3)', ringOpacity: '0.6' },
+          '50%':      { boxShadow: '0 0 40px rgba(34,197,94,0.7)', ringOpacity: '1' },
+        },
+        listeningPulse: {
+          '0%, 100%': { boxShadow: '0 0 14px rgba(59,130,246,0.25)', ringOpacity: '0.5' },
+          '50%':      { boxShadow: '0 0 30px rgba(59,130,246,0.6)',  ringOpacity: '0.9' },
+        },
+        thinkingPulse: {
+          '0%, 100%': { boxShadow: '0 0 10px rgba(251,191,36,0.15)', ringOpacity: '0.35' },
+          '50%':      { boxShadow: '0 0 22px rgba(251,191,36,0.45)', ringOpacity: '0.7' },
         },
       },
       fontFamily: {

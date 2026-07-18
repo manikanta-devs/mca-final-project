@@ -9,6 +9,7 @@ const PAGE_META = {
   '/dashboard/coach':     { title: 'Communication Coach', subtitle: 'Train clarity, confidence, and interview speaking skills' },
   '/dashboard/resume':    { title: 'Resume Analysis',     subtitle: 'Upload and analyze your resume' },
   '/dashboard/interview': { title: 'Mock Interview',   subtitle: 'Practice with generated questions' },
+  '/dashboard/video-interview': { title: '3D Video Interview', subtitle: 'Practice behavior & technical topics with live digital avatars' },
   '/dashboard/quiz':      { title: 'Quiz Practice',       subtitle: 'Strengthen weak areas with fast topic-based drills' },
   '/dashboard/analytics': { title: 'Performance Analytics', subtitle: 'Track your progress and improvement' },
 }

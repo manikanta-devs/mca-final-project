@@ -5,14 +5,19 @@ import logging
 import re
 from flask import Blueprint, request, jsonify
 from routes.interview_routes import token_required
+from utils.limiter import limiter
 from ai.gemini_service import GeminiService
 from services.video_interview_prompts import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE, FALLBACK_QUESTIONS
 
 logger = logging.getLogger(__name__)
 video_interview_bp = Blueprint("video_interview", __name__)
+# Module-level singleton — GeminiService uses __new__ singleton pattern
+# Do NOT instantiate inside request handlers (wasteful + log spam)
+_gemini = GeminiService()
 
 @video_interview_bp.route("/video-interview/next-question", methods=["POST"])
 @token_required
+@limiter.limit("15 per minute")
 def next_question():
     """Generates the next interview question using Gemini based on resume & Q&A history."""
     # Retrieve current username from request context (set by token_required)
@@ -50,11 +55,10 @@ def next_question():
     full_prompt = f"{SYSTEM_PROMPT}\n\n{user_prompt}"
     
     # 5. Call Gemini Service
-    gemini = GeminiService()
     raw_response = None
     
     try:
-        raw_response = gemini.generate_content(full_prompt, temperature=0.7, max_tokens=300)
+        raw_response = _gemini.generate_content(full_prompt, temperature=0.7, max_tokens=300)
     except Exception as e:
         logger.error(f"Gemini call failed in video_interview/next-question: {e}")
         
@@ -80,6 +84,9 @@ def next_question():
     if not parsed_question:
         logger.info("Using hardcoded fallback question bank for video interview.")
         fallback_idx = current_index % len(FALLBACK_QUESTIONS)
-        parsed_question = FALLBACK_QUESTIONS[fallback_idx]
-        
+        parsed_question = dict(FALLBACK_QUESTIONS[fallback_idx])  # copy to avoid mutation
+        parsed_question["source"] = "fallback"
+        return jsonify(parsed_question), 200
+
+    parsed_question["source"] = "ai"
     return jsonify(parsed_question), 200

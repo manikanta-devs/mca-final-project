@@ -12,10 +12,10 @@ const DashboardOverview = lazy(() => import('./pages/DashboardOverview'))
 const CommunicationCoachPage = lazy(() => import('./pages/CommunicationCoachPage'))
 const ResumePage = lazy(() => import('./pages/ResumePage'))
 const InterviewPage = lazy(() => import('./pages/InterviewPage'))
-const VideoInterviewPage = lazy(() => import('./features/video-interview/VideoInterviewPage'))
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'))
 const ResultsPage = lazy(() => import('./pages/ResultsPage'))
 const QuizPage = lazy(() => import('./pages/QuizPage'))
+const VideoInterviewPage = lazy(() => import('./features/video-interview/VideoInterviewPage'))
 import ProtectedRoute from './components/ProtectedRoute'
 
 function AnimatedRoutes() {

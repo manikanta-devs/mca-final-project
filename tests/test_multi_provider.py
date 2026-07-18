@@ -24,23 +24,31 @@ from backend.ai.gemini_service import (
 
 @pytest.fixture
 def clean_env():
-    """Temporarily clear standard provider API keys from environment."""
-    keys = [
-        "GEMINI_API_KEY", "GEMINI_API_KEY_1", "GEMINI_API_KEY_2",
-        "HUGGINGFACE_API_KEY", "HUGGINGFACE_API_KEY_1", "HUGGINGFACE_API_KEY_2",
-        "GROQ_API_KEY", "GROQ_API_KEY_1", "GROQ_API_KEY_2",
-        "OPENROUTER_API_KEY", "OPENROUTER_API_KEY_1", "OPENROUTER_API_KEY_2",
-        "MISTRAL_API_KEY", "MISTRAL_API_KEY_1", "MISTRAL_API_KEY_2",
-        "LOCAL_LLM_ENABLED"
+    """Temporarily clear standard provider API keys from environment and restore it completely afterward."""
+    # Reset the singleton instance of GeminiService to force re-initialization
+    GeminiService._instance = None
+    
+    old_environ = dict(os.environ)
+    prefixes = [
+        "GEMINI_API_KEY", "HUGGINGFACE_API_KEY", "GROQ_API_KEY",
+        "OPENROUTER_API_KEY", "MISTRAL_API_KEY", "DEEPSEEK_API_KEY",
+        "LOCAL_LLM_"
     ]
-    old_vals = {}
-    for key in keys:
-        if key in os.environ:
-            old_vals[key] = os.environ[key]
+    for key in list(os.environ.keys()):
+        matched = False
+        for prefix in prefixes:
+            if key == prefix or key.startswith(prefix + "_"):
+                matched = True
+                break
+        if key == "LOCAL_LLM_ENABLED":
+            matched = True
+        if matched:
             del os.environ[key]
     yield
-    for key, val in old_vals.items():
-        os.environ[key] = val
+    os.environ.clear()
+    os.environ.update(old_environ)
+    # Reset singleton again after test to clean up
+    GeminiService._instance = None
 
 def test_initialize_providers_order(clean_env):
     """Test that providers are loaded in the correct alternating order."""
@@ -56,11 +64,14 @@ def test_initialize_providers_order(clean_env):
     service = GeminiService()
     
     provider_ids = [p.provider_id for p in service.providers]
-    # Groq first (fastest), then OpenRouter, Mistral, Gemini, HF
-    assert provider_ids == ["groq_1", "openrouter_1", "mistral_1", "gemini_1", "hf_1", "gemini_2", "hf_2"]
+    # Gemini first, then Groq, OpenRouter, Mistral, HF, Gemini_2, HF_2
+    assert provider_ids == ["gemini_1", "groq_1", "openrouter_1", "mistral_1", "hf_1", "gemini_2", "hf_2"]
     
-    assert service.providers[0].api_key == "groq_key_a"
-    assert service.providers[3].api_key == "gemini_key_a"
+    assert service.providers[0].api_key == "gemini_key_a"
+    assert service.providers[1].api_key == "groq_key_a"
+    assert service.providers[2].api_key == "or_key_a"
+    assert service.providers[3].api_key == "mistral_key_a"
+    assert service.providers[4].api_key == "hf_key_a"
     assert service.providers[5].api_key == "gemini_key_b"
     assert service.providers[6].api_key == "hf_key_b"
 
@@ -125,8 +136,7 @@ def test_cooldown_skips_provider(mock_post, clean_env):
     mock_post.reset_mock()
     service.cooldowns["mistral_1"] = time.time() + 60
     
-    # If all are on cooldown, it should try them anyway!
-    service.generate_content("Hi")
-    # Both should be attempted, so mock_post should be called twice (if the first one fails)
-    # Let's verify it gets called
-    assert mock_post.call_count > 0
+    # If all are on cooldown, it should return None immediately for fast fallback
+    res = service.generate_content("Hi")
+    assert res is None
+    assert mock_post.call_count == 0

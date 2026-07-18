@@ -22,8 +22,15 @@ python-docx==1.1.0
 # Data validation
 pydantic==2.5.0
 
-# Production WSGI server
+# Production WSGI servers
 gunicorn==21.2.0
+waitress==3.0.1
 
-# Utilities
-wikipedia==1.4.0
+# Rate limiting storage backend (Redis)
+redis==5.0.1
+
+# System metrics monitoring
+psutil==5.9.8
+
+# PostgreSQL driver (optional — used when DATABASE_URL is set)
+psycopg2-binary==2.9.9

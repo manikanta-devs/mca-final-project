@@ -72,3 +72,7 @@ coverage.xml
 frontend/playwright-report/
 frontend/test-results/
 chrome_run.log
+
+# Scratch files
+scratch/
+

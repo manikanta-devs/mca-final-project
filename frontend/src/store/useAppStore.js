@@ -34,6 +34,13 @@ const useAppStore = create((set) => ({
       return { darkMode: next }
     }),
 
+  // TTS mode: 'browser' | 'neural'
+  ttsMode: localStorage.getItem('ttsMode') || 'browser',
+  setTtsMode: (mode) => {
+    localStorage.setItem('ttsMode', mode)
+    set({ ttsMode: mode })
+  },
+
   // Actions
   clearSession: () => set({ interviewSession: null, interviewResults: null }),
 }))

@@ -179,7 +179,7 @@ export default function InterviewCoachPanel({ coaching, loading, onRetry, onNext
               <SectionCard className="border-l-2 border-l-violet-500/60">
                 <SectionTitle icon={Eye} color="text-violet-400">HR First Impression</SectionTitle>
                 <p className="text-[11px] text-gray-400 leading-relaxed italic pl-3 border-l border-violet-500/30">
-                  "{coaching.hr_first_impression}"
+                  &quot;{coaching.hr_first_impression}&quot;
                 </p>
               </SectionCard>
             )}

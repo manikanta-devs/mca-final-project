@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import DOMPurify from 'dompurify'
 import { useNavigate } from 'react-router-dom'
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -304,7 +305,7 @@ export default function AnalyticsPage() {
             {/* AI Recommendation */}
             <div className="p-3.5 rounded-2xl bg-violet-500/5 dark:bg-violet-950/[0.04] border border-violet-500/20 space-y-1 text-xs">
               <span className="text-[9px] font-mono tracking-wider text-indigo-600 dark:text-violet-400 uppercase block">Study Recommendation Directive</span>
-              <p className="text-slate-650 dark:text-gray-300 font-medium leading-relaxed font-sans" dangerouslySetInnerHTML={{ __html: aiRecommendationText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+              <p className="text-slate-650 dark:text-gray-300 font-medium leading-relaxed font-sans" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(aiRecommendationText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')) }} />
             </div>
           </div>
         </div>

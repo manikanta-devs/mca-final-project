@@ -870,6 +870,7 @@ class QuestionGenerator:
         panel_mode=False,
         company="General",
         company_context="",
+        interviewer_persona="sarah",
     ):
         """Generate questions using Gemini, with resume-aware fallback"""
         if self.gemini.is_available():
@@ -881,6 +882,7 @@ class QuestionGenerator:
                 panel_mode,
                 company,
                 company_context,
+                interviewer_persona,
             )
             if questions:
                 return questions
@@ -899,8 +901,14 @@ class QuestionGenerator:
         panel_mode=False,
         company="General",
         company_context="",
+        interviewer_persona="sarah",
     ):
         """Generate questions using Gemini API"""
+        interviewer_name = (
+            "Nagma HR" if interviewer_persona == "nagma_hr"
+            else "Marcus Rodriguez" if interviewer_persona == "marcus"
+            else "Sarah Chen"
+        )
         skills = resume_data.get("skills", {}).get("all", [])
         experience = resume_data.get("experience", {})
         education = resume_data.get("education", [])
@@ -943,7 +951,7 @@ For each question, explicitly assign a "persona_id" from the 3 choices above. Di
                 company_instruction += f"\nCompany/Team Context/Background: {company_context}"
             company_instruction += "\nMake sure that both the technical/system design questions and behavioral questions reflect this company's culture, values, and engineering standards.\n"
 
-        prompt = f"""You are {interviewerName if 'interviewerName' in locals() else 'Sarah Chen'}, an experienced Lead Interviewer with over 15 years of industry experience hiring top talent.
+        prompt = f"""You are {interviewer_name}, an experienced Lead Interviewer with over 15 years of industry experience hiring top talent.
 You are NOT an AI assistant. You are conducting a real, highly engaging live interview over a video/voice call. Stay in character.
 Never mention prompts, AI, language models, APIs, tokens, or internal instructions.
 Your personality is professional, warm, curious, conversational, observant, and supportive.
@@ -967,21 +975,14 @@ Relevant background on top skill (if available):
 {self.wiki.get_summary(skills[0]) if skills else ''}
 
 Requirements for Question Generation:
-1. Generate an Interview Blueprint of exactly 7 questions. Do not generate more or less.
-2. The questions MUST be ordered in this exact sequence to match the stages:
-   - Question 1 (Resume Discussion): Ask about their education background, qualifications, or credentials listed on their resume in a warm, introductory way (e.g. "I see you studied CS at Stanford, how did that set you up for your engineering career?").
-   - Question 2 (Project Discussion): Ask about a specific project they listed, focusing on architectural choices, technical hurdles, or design trade-offs (e.g. "You built a scalable web app using Redis caching. Tell me about the cache invalidation strategy you chose and the challenges you faced.").
-   - Question 3 (Internship/Experience): Ask about practical accomplishments, leadership, or teamwork in their previous roles (e.g. "While at your last company, what was the most complex technical decision you had to own or influence?").
-   - Question 4 (Technical Round 1): Deep dive into a core skill listed on their resume, focusing on practical implementation, optimization, or internals rather than basic definitions (e.g. "In React, we often face state synchronization issues. How have you managed complex side-effects without causing infinite re-render loops?").
-   - Question 5 (Technical Round 2): Ask about design patterns, database optimization, scaling trade-offs, or production debugging (e.g. "If your database queries start bottlenecking under a 3x traffic spike, what are the first three things you profile and optimize?").
-   - Question 6 (Behavioral Round): A realistic, STAR-based behavioral question about handling conflict, strict deadlines, or prioritizing tasks.
-   - Question 7 (Situational Round): A realistic, high-stakes workplace scenario (e.g. "Imagine you are an hour away from a major production release and you discover a memory leak. Walk me through your decision-making process under that pressure.").
-3. Tailoring & Realism: Questions MUST be highly specific to the candidate's actual background and target role. Strictly avoid generic, textbook definitions or simple trivia (e.g. do not ask "What is a list?", "What is a closure?", "Explain the virtual DOM"). Instead, ask about practical scenarios, architectural choices, scale, and real-world trade-offs.
+1. Generate an Interview Blueprint of exactly {num_questions} questions. Do not generate more or less.
+2. The questions should progress naturally starting from a resume/education check (first question), discussing a specific project they listed (second question), testing core technical skills (middle questions), and wrapping up with behavioral/situational questions (final questions).
+3. Tailoring & Realism: Questions MUST be highly specific to the candidate's actual background and target role. Strictly avoid generic, textbook definitions or simple trivia (e.g. do not ask "What is a list?", "What is a closure?", "Explain the virtual DOM"). Instead, ask about practical scenarios, architectural choices, scale, and real-world trade-offs. Every single technical and project question must directly reference a skill from Candidate Skills: {skills_str} or a project detail from the candidate's background. If the candidate lists specific technologies, you must design questions asking how they applied those exact tools in their work or projects.
 4. Natural Conversational Tone: Frame the questions as if you are speaking live in a real, collaborative meeting: "I noticed on your resume...", "Suppose this happens in your first month...", "Walk me through how you designed...".
 5. Difficulty Level: The questions must strictly match the '{difficulty}' level.
 
-Return a JSON array of exactly 7 question objects. Each question object must have:
-- "id": number (1 to 7)
+Return a JSON array of exactly {num_questions} question objects. Each question object must have:
+- "id": number (1 to {num_questions})
 - "text": the full question text (personalized to their resume, warm and conversational)
 - "category": topic category (e.g., Resume Discussion, Project Discussion, Technical, Behavioral, Situational)
 - "difficulty": "{difficulty}"
@@ -989,27 +990,51 @@ Return a JSON array of exactly 7 question objects. Each question object must hav
 - "persona_id": "<technical_lead|hr_manager|strict_manager>" (only include if panel mode is enabled)
 Keep all question text concise (at most 2 sentences) to ensure fast generation.
 """
-
         result = self.gemini.generate_json(prompt)
         if result and isinstance(result, list):
             validated = []
             for i, q in enumerate(result[:num_questions]):
                 if isinstance(q, dict) and "text" in q:
+                    text = q.get("text", "")
+                    words = len(text.split())
+                    speaking_duration = max(3.0, (words / 2.0) + 1.5)
+                    
+                    # Video filename mapping based on category/type/index
+                    category = q.get("category", "General").lower()
+                    q_type = q.get("type", "technical").lower()
+                    
+                    if i == 0 or "resume" in category:
+                        video_name = "hello_good_morning.mp4"
+                    elif i == 1 or "project" in category:
+                        video_name = "looking_resume.mp4"
+                    elif "experience" in category or "leadership" in category or "failure" in category:
+                        video_name = "wonderful_thanks_for_joining.mp4"
+                    elif q_type == "technical" and any(k in category for k in ["python", "javascript", "typescript", "react", "vue", "node", "django", "flask", "spring", "docker"]):
+                        video_name = "explaining.mp4"
+                    elif q_type == "technical":
+                        video_name = "explaining.mp4"
+                    elif q_type == "behavioral":
+                        video_name = "talking.mp4"
+                    else:
+                        video_name = "understood.mp4"
+                        
                     validated.append(
                         {
                             "id": i + 1,
-                            "text": q.get("text", ""),
+                            "text": text,
                             "category": q.get("category", "General"),
                             "difficulty": q.get("difficulty", difficulty),
-                            "type": q.get("type", "technical"),
+                            "type": q_type,
                             "persona_id": q.get("persona_id"),
+                            "video_name": video_name,
+                            "speaking_duration": round(speaking_duration, 1),
+                            "recommended_pause": 2.5
                         }
                     )
             if validated:
                 return validated
 
         return None
-
     def _get_fallback_questions(
         self,
         role,
@@ -1105,16 +1130,83 @@ Keep all question text concise (at most 2 sentences) to ensure fast generation.
                 seen.add(q["text"])
                 unique.append(q)
 
-        # ── 8. Select and shuffle ────────────────────────────────
-        opener = next(
-            (q for q in unique if q.get("category") == "Resume Walkthrough"),
-            unique[0] if unique else None,
-        )
-        remaining = [q for q in unique if q is not opener]
-        random.shuffle(remaining)
-        selected = ([opener] if opener else []) + remaining[: max(0, num_questions - 1)]
+        # ── 8. Blueprint-aware Stage Sorting ────────────────────
+        # Partition unique questions into 7 distinct stages of the interview flow
+        stage_map = {1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: []}
+        
+        for q in unique:
+            cat = q.get("category", "").lower()
+            q_type = q.get("type", "").lower()
+            
+            if cat == "resume walkthrough":
+                stage_map[1].append(q)
+            elif cat == "project deep dive":
+                stage_map[2].append(q)
+            elif cat in ["failure and learning", "first 30 days", "resume pressure"] or (q_type == "behavioral" and cat in ["communication", "candidate pitch"]):
+                stage_map[3].append(q)
+            elif q_type == "technical" and cat in ["python", "javascript", "typescript", "react", "vue", "node", "django", "flask", "spring", "docker"]:
+                stage_map[4].append(q)
+            elif q_type == "technical" or cat in ["databases", "kubernetes", "aws", "gcp", "azure", "redis", "architecture", "security", "design review"]:
+                stage_map[5].append(q)
+            elif q_type == "behavioral":
+                stage_map[6].append(q)
+            else:
+                stage_map[7].append(q)
+
+        # Select representative questions per stage to guarantee a structured flow
+        selected = []
+        for stage_idx in sorted(stage_map.keys()):
+            stage_pool = stage_map[stage_idx]
+            if stage_pool:
+                selected.append(random.choice(stage_pool))
+                
+        # If we need more questions to meet the user's requested num_questions, backfill from remaining unique questions
+        used_texts = {q["text"] for q in selected}
+        remaining_pool = [q for q in unique if q["text"] not in used_texts]
+        random.shuffle(remaining_pool)
+        
+        while len(selected) < num_questions and remaining_pool:
+            selected.append(remaining_pool.pop())
+            
+        selected = selected[:num_questions]
+        
+        # Helper to retrieve the stage of any question for final sorting
+        def get_q_stage(q):
+            cat = q.get("category", "").lower()
+            q_type = q.get("type", "").lower()
+            if cat == "resume walkthrough": return 1
+            if cat == "project deep dive": return 2
+            if cat in ["failure and learning", "first 30 days", "resume pressure"] or (q_type == "behavioral" and cat in ["communication", "candidate pitch"]): return 3
+            if q_type == "technical" and cat in ["python", "javascript", "typescript", "react", "vue", "node", "django", "flask", "spring", "docker"]: return 4
+            if q_type == "technical" or cat in ["databases", "kubernetes", "aws", "gcp", "azure", "redis", "architecture", "security", "design review"]: return 5
+            if q_type == "behavioral": return 6
+            return 7
+
+        selected.sort(key=get_q_stage)
+        
         for i, q in enumerate(selected):
             q["id"] = i + 1
+            words = len(q["text"].split())
+            speaking_duration = max(3.0, (words / 2.0) + 1.5)
+            q["speaking_duration"] = round(speaking_duration, 1)
+            q["recommended_pause"] = 2.5
+            category = q.get("category", "General").lower()
+            q_type = q.get("type", "technical").lower()
+            if i == 0 or "resume" in category:
+                q["video_name"] = "hello_good_morning.mp4"
+            elif i == 1 or "project" in category:
+                q["video_name"] = "looking_resume.mp4"
+            elif "experience" in category or "leadership" in category or "failure" in category:
+                q["video_name"] = "wonderful_thanks_for_joining.mp4"
+            elif q_type == "technical" and any(k in category for k in ["python", "javascript", "typescript", "react", "vue", "node", "django", "flask", "spring", "docker"]):
+                q["video_name"] = "explaining.mp4"
+            elif q_type == "technical":
+                q["video_name"] = "explaining.mp4"
+            elif q_type == "behavioral":
+                q["video_name"] = "talking.mp4"
+            else:
+                q["video_name"] = "understood.mp4"
+
             if panel_mode and not q.get("persona_id"):
                 if q.get("persona"):
                     q["persona_id"] = q.get("persona")
@@ -1125,9 +1217,7 @@ Keep all question text concise (at most 2 sentences) to ensure fast generation.
                 else:
                     q["persona_id"] = "technical_lead"
             q.pop("persona", None)
-
         return selected
-
     def generate_next_adaptive_question(
         self,
         session,
@@ -1139,77 +1229,161 @@ Keep all question text concise (at most 2 sentences) to ensure fast generation.
         company="General",
         company_context="",
     ):
-        """Generate the next adaptive question conversationally based on previous answers and resume context."""
+        """Generate the next adaptive question with full interview memory: resume, onboarding transcripts, and performance trajectory."""
         resume_data = session.get("resume_data", {})
         role = session.get("role", "software_engineer")
-        
-        # Build history string (Structured Interview Memory)
+
+        # ── 1. Full resume context ──────────────────────────────────────────
+        skills = resume_data.get("skills", {}).get("all", [])
+        skills_str = ", ".join(skills[:20]) if skills else "general programming"
+
+        experience = resume_data.get("experience", {}) or {}
+        exp_titles = experience.get("titles", []) if isinstance(experience, dict) else []
+        exp_summary = ", ".join(exp_titles[:5]) if exp_titles else ""
+
+        projects_raw = resume_data.get("projects", []) or []
+        project_lines = []
+        for proj in projects_raw[:4]:
+            if isinstance(proj, dict):
+                name = proj.get("name", "")
+                tech = proj.get("technologies", [])
+                desc = proj.get("description", "")
+                tech_str = ", ".join(tech[:5]) if isinstance(tech, list) else str(tech)
+                project_lines.append(f"  - {name}: {desc[:120]} [{tech_str}]" if desc else f"  - {name} [{tech_str}]")
+            elif isinstance(proj, str):
+                project_lines.append(f"  - {proj[:150]}")
+        projects_str = "\n".join(project_lines) if project_lines else "  - Not specified"
+
+        education_raw = resume_data.get("education", []) or []
+        edu_lines = []
+        for edu in education_raw[:2]:
+            if isinstance(edu, dict):
+                deg = edu.get("degree", "")
+                inst = edu.get("institution", "")
+                edu_lines.append(f"{deg} at {inst}" if inst else deg)
+            elif isinstance(edu, str):
+                edu_lines.append(edu[:100])
+        education_str = "; ".join(edu_lines) if edu_lines else "Not specified"
+
+        # ── 2. Build structured interview memory from session answers ──────────
         history = []
+        score_history = []
         for ans in session.get("answers", []):
             ev = ans.get("evaluation", {}) or {}
-            skills = ev.get("strong_areas", [])
-            topics = [ev.get("topic")] if ev.get("topic") else []
-            conf = "High" if ev.get("confidence_score", 50) >= 75 else ("Medium" if ev.get("confidence_score", 50) >= 45 else "Low")
-            
-            memory_block = (
-                f"Interviewer: {ans['question']['text']}\n"
-                f"Candidate: {ans['answer']}\n"
-                f"Memory Metadata -> topics: {topics}, skills_detected: {skills}, candidate_confidence: {conf}"
+            strong_areas = ev.get("strong_areas", [])
+            weak_areas   = ev.get("weak_areas", [])
+            topic        = ev.get("topic", "")
+            score        = ev.get("overall_score") or ev.get("confidence_score", 0)
+            category     = ans.get("question", {}).get("category", "")
+
+            if score:
+                score_history.append(score)
+
+            confidence_label = (
+                "High confidence" if score >= 75
+                else "Medium confidence" if score >= 45
+                else "Low confidence / struggled"
             )
-            history.append(memory_block)
+
+            block_parts = [
+                f"[{category}] Interviewer: {ans['question']['text']}",
+                f"Candidate: {ans['answer']}",
+            ]
+            if strong_areas or weak_areas or topic:
+                meta = f"Evaluation → topic: {topic}, strong: {strong_areas}, weak: {weak_areas}, {confidence_label}"
+                block_parts.append(meta)
+            history.append("\n".join(block_parts))
+
         history_str = "\n\n".join(history)
 
-        skills = resume_data.get("skills", {}).get("all", [])
-        skills_str = ", ".join(skills[:15]) if skills else "general programming"
-        
-        # Determine next type: if index is > 55% of total questions, transition to behavioral
+        # ── 3. Performance trajectory ─────────────────────────────────────────
+        if len(score_history) >= 2:
+            trend = score_history[-1] - score_history[0]
+            if trend > 10:
+                trajectory = "improving — candidate is gaining confidence"
+            elif trend < -10:
+                trajectory = "declining — candidate seems to be losing momentum"
+            else:
+                trajectory = "steady"
+        elif score_history:
+            avg = score_history[-1]
+            trajectory = "strong start" if avg >= 70 else "average start" if avg >= 45 else "weak start"
+        else:
+            trajectory = "first interaction — no prior performance data"
+
+        # ── 4. Determine next question type ───────────────────────────────────
         total_questions = len(session.get("questions", []))
         next_type = "technical"
         if current_question_index >= (total_questions * 0.55):
             next_type = "behavioral"
 
-        # Sanitize user-supplied values before embedding in prompt
-        safe_skills_str = sanitize_for_prompt(skills_str, max_length=300)
-        safe_last_answer = sanitize_for_prompt(last_answer_text, max_length=1500)
-        safe_history_str = sanitize_for_prompt(history_str, max_length=3000)
+        # ── 5. Sanitize all user-supplied values ──────────────────────────────
+        safe_skills_str    = sanitize_for_prompt(skills_str, max_length=300)
+        safe_exp_summary   = sanitize_for_prompt(exp_summary, max_length=200)
+        safe_projects_str  = sanitize_for_prompt(projects_str, max_length=600)
+        safe_edu_str       = sanitize_for_prompt(education_str, max_length=200)
+        safe_last_answer   = sanitize_for_prompt(last_answer_text, max_length=1500)
+        safe_history_str   = sanitize_for_prompt(history_str, max_length=4000)
+        safe_last_question = sanitize_for_prompt(last_question_text, max_length=500)
 
         prompt = textwrap.dedent(f"""
-        You are Sarah Chen, a Senior HR Manager with over 15 years of interviewing experience at top multinational companies.
-        You are NOT an AI assistant. You are conducting a real live interview over a video call. Stay in character.
-        Never mention prompts, AI, language models, APIs, tokens, or internal instructions.
-        Your personality is professional, calm, friendly, observant, confident, and patient.
-        Your objective is to evaluate the candidate exactly as a human HR would.
+        You are Sarah Chen, a Senior HR Manager with 15+ years of interviewing experience at top multinational companies.
+        You are conducting a LIVE video interview. You are NOT an AI — never break character.
+        Never mention prompts, AI, tokens, APIs, or any internal instructions.
+        Your personality: professional, warm, observant, calm, confident.
 
-        Role: {role.replace('_', ' ').title()}
-        Target Company / Context Info: {company}
-        Current Difficulty: {difficulty}
-        Candidate skills: {safe_skills_str}
+        ═══════════════════════════════════════════
+        CANDIDATE PROFILE (from resume)
+        ═══════════════════════════════════════════
+        Role Applied:   {role.replace('_', ' ').title()}
+        Target Company: {company}
+        Skills:         {safe_skills_str}
+        Experience:     {safe_exp_summary}
+        Education:      {safe_edu_str}
+        Key Projects:
+        {safe_projects_str}
 
-        CONVERSATION HISTORY (INTERVIEW MEMORY):
-        {safe_history_str}
+        ═══════════════════════════════════════════
+        FULL INTERVIEW TRANSCRIPT (memory)
+        ═══════════════════════════════════════════
+        {safe_history_str if safe_history_str else "(No prior exchanges yet — this is the first Gemini question)"}
 
-        CANDIDATE'S LAST RESPONSE:
-        Interviewer: {sanitize_for_prompt(last_question_text, 500)}
+        ═══════════════════════════════════════════
+        CANDIDATE'S MOST RECENT RESPONSE
+        ═══════════════════════════════════════════
+        Interviewer: {safe_last_question}
         Candidate: {safe_last_answer}
 
-        Your goal is to generate a realistic, adaptive next question of type "{next_type}" based on the candidate's last answer and the interview memory.
+        ═══════════════════════════════════════════
+        PERFORMANCE SIGNAL
+        ═══════════════════════════════════════════
+        Current difficulty: {difficulty}
+        Performance trajectory: {trajectory}
+        Score history: {score_history}
 
-        CRITICAL RULES:
-        1. FOLLOW UP: Do not just ask a random question. Probe their last answer.
-        2. DRILL DEEPER: If the candidate mentioned specific libraries, tools, or architectures (e.g., React, Flask, Docker), ask a trade-off or comparison question.
-        3. SCALE and SYSTEM DESIGN: If they described a project, ask how they would scale it.
-        4. INTERVIEW MEMORY: Refer back to things the candidate said earlier if relevant.
-        5. DIFFICULTY ADAPTATION: If the candidate struggled, ask a simpler conceptual follow-up. If they did well, raise the difficulty.
-        6. COMPANY ALIGNMENT: Align the question style with {company}'s actual interview style.
-        7. PERSONA: If panel mode is active, select a persona_id from: "technical_lead", "hr_manager", "strict_manager".
+        ═══════════════════════════════════════════
+        YOUR TASK
+        ═══════════════════════════════════════════
+        Generate the next adaptive interview question of type "{next_type}".
 
-        Format your response strictly as a JSON object with these keys:
-        - text: The text of the question. Write it in the direct, warm, and professional voice of Sarah Chen.
-        - type: "{next_type}"
-        - category: A short 1-2 word topic name (e.g., "Web Scale", "FastAPI vs Flask", "Decorators").
-        - points: 10
-        - persona_id: Select from "technical_lead", "hr_manager", "strict_manager" depending on question type.
-        Keep all question text extremely concise (at most 1-2 sentences) to ensure fast generation.
+        STRICT RULES:
+        1. PROBE THE LAST ANSWER — do not ask a random question. Dig into what they just said.
+        2. REFERENCE THE RESUME — if they mentioned a project or tool that matches their resume, ask a deeper question about it.
+        3. DRILL DOWN — if they named a library, framework, or architecture, ask a trade-off, edge-case, or design decision question.
+        4. MEMORY — if they said something interesting in an earlier answer, bring it back now.
+        5. ADAPT DIFFICULTY — if trajectory is "declining", ask something simpler and more conceptual. If "improving", raise the bar.
+        6. COMPANY FIT — align the question style and focus areas with {company}'s known interview culture.
+        7. DO NOT repeat any question from the transcript above.
+        8. Keep the question concise: 1–2 sentences maximum. Natural, conversational Sarah Chen voice.
+
+        Respond with ONLY a JSON object with these exact keys:
+        {{
+          "text": "<the question, 1-2 sentences>",
+          "type": "{next_type}",
+          "category": "<2-3 word topic e.g. 'State Management', 'API Design', 'Team Conflict'>",
+          "points": 10,
+          "persona_id": "<one of: technical_lead | hr_manager | strict_manager>"
+        }}
         """).strip()
 
         if self.gemini.is_available():
@@ -1220,14 +1394,14 @@ Keep all question text concise (at most 2 sentences) to ensure fast generation.
             except Exception as e:
                 logger.error(f"Failed to generate adaptive next question: {e}")
 
-        # Fallback question from pre-generated list
+        # Fallback: use pre-generated blueprint question or a hardcoded default
         questions = session.get("questions", [])
         if current_question_index < len(questions):
             return questions[current_question_index]
         return {
-            "text": "Can you tell me about a time you faced a difficult technical challenge and how you resolved it?",
+            "text": "Can you walk me through a challenging technical problem you solved recently, and the approach you took?",
             "type": "behavioral",
-            "category": "Behavioral",
+            "category": "Problem Solving",
             "points": 10,
             "persona_id": "hr_manager"
         }

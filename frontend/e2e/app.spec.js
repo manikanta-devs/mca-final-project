@@ -27,7 +27,7 @@ test('AI Interview Full Flow Test', async ({ page }) => {
   }, { token, username });
 
   // Verify Landing Page loaded
-  await expect(page.locator('h1')).toContainText('AstraPrep');
+  await expect(page.locator('h1')).toContainText(/AstraPrep|TalentForge/);
 
   // 2. Click "Start Interview" to navigate to Interview Page
   await page.click('text=Start Interview');

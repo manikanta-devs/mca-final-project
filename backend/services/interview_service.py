@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from services import database as db
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ class InterviewService:
             "answers": [],
             "resume_data": resume_data,
             "status": "active",
-            "started_at": datetime.utcnow().isoformat(),
+            "started_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             "completed_at": None,
             "results": None,
         }
@@ -55,7 +55,7 @@ class InterviewService:
         session = db.get_session(session_id)
         if not session:
             return False
-        answer_data["timestamp"] = datetime.utcnow().isoformat()
+        answer_data["timestamp"] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
         session["answers"].append(answer_data)
         db.save_session(session)
         return True
@@ -224,7 +224,7 @@ class InterviewService:
             "difficulty_history": difficulty_history,
             "answers": answers,
             "started_at": session["started_at"],
-            "completed_at": datetime.utcnow().isoformat(),
+            "completed_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             "duration_minutes": self._calc_duration(session["started_at"]),
         }
 
@@ -292,7 +292,7 @@ class InterviewService:
         """Calculate interview duration in minutes."""
         try:
             start = datetime.fromisoformat(start_iso)
-            diff = datetime.utcnow() - start
+            diff = datetime.now(timezone.utc).replace(tzinfo=None) - start
             return max(1, int(diff.total_seconds() / 60))
         except Exception:
             return 0

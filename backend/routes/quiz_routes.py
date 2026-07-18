@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 import logging
 
 from services.quiz_service import QuizService
-from utils.auth_utils import token_required
+from utils.auth_utils import token_required, verify_ownership
 
 logger = logging.getLogger(__name__)
 quiz_bp = Blueprint("quiz", __name__)
@@ -36,7 +36,7 @@ def start_quiz():
         num_questions = min(max(safe_int(data.get("num_questions", 5), 5), 3), 10)
         candidate_name = data.get("candidate_name", "Candidate")
         quiz_type = data.get("quiz_type", "technical")
-        company = data.get("company", "General")
+        skills = data.get("skills", [])
         session = quiz_service.start_quiz(
             topic=topic,
             difficulty=difficulty,
@@ -45,6 +45,7 @@ def start_quiz():
             quiz_type=quiz_type,
             company=company,
             username=request.username,
+            skills=skills,
         )
         return jsonify({"success": True, **session}), 200
     except Exception as exc:
@@ -65,8 +66,9 @@ def submit_quiz_answer():
         session = quiz_service.get_session(session_id)
         if not session:
             return jsonify({"error": "Session not found"}), 404
-        if session.get("username") and session.get("username") != request.username:
-            return jsonify({"error": "Forbidden"}), 403
+        ownership_error = verify_ownership(session, request)
+        if ownership_error:
+            return ownership_error
         result = quiz_service.submit_answer(session_id, question_index, selected_index)
         return jsonify({"success": True, **result}), 200
     except Exception as exc:
@@ -85,8 +87,9 @@ def complete_quiz():
         session = quiz_service.get_session(session_id)
         if not session:
             return jsonify({"error": "Session not found"}), 404
-        if session.get("username") and session.get("username") != request.username:
-            return jsonify({"error": "Forbidden"}), 403
+        ownership_error = verify_ownership(session, request)
+        if ownership_error:
+            return ownership_error
         results = quiz_service.complete_quiz(session_id)
         return jsonify({"success": True, "results": results}), 200
     except Exception as exc:
@@ -111,8 +114,9 @@ def get_session(session_id):
         session = quiz_service.get_session(session_id)
         if not session:
             return jsonify({"error": "Session not found"}), 404
-        if session.get("username") and session.get("username") != request.username:
-            return jsonify({"error": "Forbidden"}), 403
+        ownership_error = verify_ownership(session, request)
+        if ownership_error:
+            return ownership_error
         return jsonify({"success": True, "session": session}), 200
     except Exception as exc:
         logger.error(f"Quiz session error: {exc}")

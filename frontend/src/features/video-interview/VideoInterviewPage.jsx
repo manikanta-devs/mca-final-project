@@ -1,475 +1,587 @@
-import React, { useState, useEffect, useRef } from 'react'
+/**
+ * VideoInterviewPage.jsx
+ * 
+ * Entry point for the Video Interview feature.
+ * Renders inside the Dashboard layout at route /dashboard/video-interview.
+ * 
+ * IMPORTANT: This is a PRESENTATION LAYER. It does not change how questions
+ * are generated, how answers are evaluated, how sessions are stored, or how
+ * interview history works. The Video Interview page only consumes the
+ * existing interview APIs and state.
+ * 
+ * Flow:
+ *   1. No Resume Guard → if no resumeData, prompt user to upload
+ *   2. Interview Setup → select interviewer, configure difficulty
+ *   3. Interview Room → delegates to VideoInterviewRoom
+ * 
+ * @module VideoInterviewPage
+ */
+import React, { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Mic, Briefcase, Zap, AlertCircle, ArrowLeft,
-  RefreshCw, Award, Clock, ChevronRight, CheckCircle, Flame
+  FileText,
+  ArrowRight,
+  Video,
+  Shield,
+  Clock,
+  Globe,
+  CheckCircle,
+  User,
+  Sparkles,
+  ChevronRight,
+  Star,
+  Zap,
+  Target,
 } from 'lucide-react'
-import { useInterviewSession, SESSION_PHASES } from './hooks/useInterviewSession'
-import { useTextToSpeech } from './hooks/useTextToSpeech'
-import { useSpeechToText } from './hooks/useSpeechToText'
-import HRAvatar from './components/HRAvatar'
-import InterviewControls from './components/InterviewControls'
+import { useApp } from '../../context/AppContext'
+import VideoInterviewRoom from './components/VideoInterviewRoom'
 
+// ─── Persona Data ────────────────────────────────────────────
 const PERSONAS = {
   sarah: {
+    id: 'sarah',
     name: 'Sarah Chen',
     title: 'Senior HR Director',
     company: 'TalentForge AI',
-    desc: 'Focuses on cultural alignment, core motivations, leadership qualities, and structured behavioral scenarios.',
-    image: '/interviewers/sarah_chen.png',
-    bgGradient: 'from-pink-500/10 via-purple-500/5 to-transparent',
-    accentColor: 'text-fuchsia-400',
-    borderColor: 'border-fuchsia-500/25',
-    buttonColor: 'bg-fuchsia-600 hover:bg-fuchsia-500'
+    photo: '/interviewers/sarah_chen.png',
+    focus: 'Focuses on cultural alignment, core motivations, leadership qualities, and structured behavioral scenarios.',
+    accentColor: '#8B5CF6',
+    accentBg: 'rgba(139,92,246,0.15)',
+    skills: ['Behavioral', 'Leadership', 'Culture Fit', 'Soft Skills'],
   },
   marcus: {
+    id: 'marcus',
     name: 'Marcus Rodriguez',
     title: 'Technical Lead',
     company: 'TalentForge AI',
-    desc: 'Dives deep into software engineering workflows, systems design choices, bug diagnosis, and project architecture.',
-    image: '/interviewers/marcus_rodriguez.png',
-    bgGradient: 'from-cyan-500/10 via-indigo-500/5 to-transparent',
-    accentColor: 'text-cyan-400',
-    borderColor: 'border-cyan-500/25',
-    buttonColor: 'bg-cyan-600 hover:bg-cyan-500'
-  }
+    photo: '/interviewers/marcus_rodriguez.png',
+    focus: 'Dives deep into software engineering workflows, systems design choices, bug diagnosis, and project architecture.',
+    accentColor: '#06B6D4',
+    accentBg: 'rgba(6,182,212,0.15)',
+    skills: ['Technical', 'System Design', 'Debugging', 'Architecture'],
+  },
 }
 
-export default function VideoInterviewPage() {
+const DIFFICULTIES = [
+  { value: 'Easy', color: '#22c55e', label: 'Easy', desc: 'Introductory questions' },
+  { value: 'Medium', color: '#eab308', label: 'Medium', desc: 'Standard interview' },
+  { value: 'Hard', color: '#ef4444', label: 'Hard', desc: 'Senior-level depth' },
+]
+
+// ─── Shared Styles ───────────────────────────────────────────
+const glassCard = {
+  background: 'rgba(15,23,42,0.7)',
+  backdropFilter: 'blur(12px)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  borderRadius: '16px',
+}
+
+const pageContainer = {
+  display: 'flex',
+  flexDirection: 'column',
+  height: '100%',
+  width: '100%',
+  padding: '24px',
+  gap: '24px',
+  overflowY: 'auto',
+}
+
+// ─── No Resume Guard Screen ─────────────────────────────────
+function NoResumeScreen() {
   const navigate = useNavigate()
-  const [selectedPersona, setSelectedPersona] = useState(null)
-  const [numQuestions] = useState(5)
-  const [manualAnswerText, setManualAnswerText] = useState('')
 
-  // Hooks
-  const {
-    phase,
-    setPhase,
-    qaHistory,
-    currentQuestion,
-    currentIndex,
-    elapsedTime,
-    startInterview,
-    submitAnswer,
-    resetInterview
-  } = useInterviewSession(numQuestions)
-
-  const { speak, stop: stopTTS, isSpeaking, amplitude } = useTextToSpeech()
-  
-  const {
-    isListening,
-    transcript,
-    interimResult,
-    error: micError,
-    isSupported: isSpeechSupported,
-    startListening,
-    stopListening,
-    reset: resetSTT,
-  } = useSpeechToText()
-
-  // Real-time STAR method checker logic
-  const checkStar = (val) => {
-    const v = val.toLowerCase()
-    return {
-      s: /\b(when|during|working|previous|at\s+company|the\s+problem|background|context|situation|team|project|role)\b/.test(v),
-      t: /\b(tasked|responsible|needed\s+to|had\s+to|goal|objective|challenge|requirements)\b/.test(v),
-      a: /\b(built|implemented|designed|wrote|created|optimized|developed|engineered|refactored|debugged|integrated|migrated|configured|tested|resolved)\b/.test(v),
-      r: /%|\b(percent|increased|reduced|saved|seconds|ms|improvement|boosted|decreased|resulted|optimized\s+by|throughput|latency|metrics)\b/.test(v) || /\b\d+\s*(%|percent|x|seconds|ms|users|requests)\b/.test(v)
-    }
-  }
-
-  // Calculate current STAR status based on speech transcript or typed fallback
-  const currentAnswerValue = (!isSpeechSupported || micError === 'not-allowed') ? manualAnswerText : transcript
-  const starStatus = checkStar(currentAnswerValue)
-
-  // Watch for phase transitions to orchestrate speech flow
-  useEffect(() => {
-    if (phase === SESSION_PHASES.ASKING && currentQuestion) {
-      // Clear transcript and reset STT for new question
-      resetSTT()
-      setManualAnswerText('')
-      // Avatar speaks the question
-      speak(currentQuestion.question, selectedPersona)
-    }
-  }, [phase, currentQuestion])
-
-  // Automatically start listening once avatar finishes speaking
-  useEffect(() => {
-    if (phase === SESSION_PHASES.ASKING && !isSpeaking && currentQuestion) {
-      setPhaseListening()
-    }
-  }, [isSpeaking])
-
-  const setPhaseListening = () => {
-    // Only transition if currently asking (and speech has completed)
-    if (phase === SESSION_PHASES.ASKING) {
-      // Stop speech just in case
-      stopTTS()
-      // Update state machine phase to LISTENING
-      setPhase(SESSION_PHASES.LISTENING)
-      // Start microphone transcription
-      startListening()
-    }
-  }
-
-  const handleDoneAnswering = () => {
-    stopListening()
-    const finalAnswer = (!isSpeechSupported || micError === 'not-allowed') ? manualAnswerText : transcript
-    submitAnswer(finalAnswer)
-  }
-
-  const handleStartSession = async (personaKey) => {
-    setSelectedPersona(personaKey)
-    await startInterview()
-  }
-
-  const handleExit = () => {
-    stopTTS()
-    stopListening()
-    resetInterview()
-    setSelectedPersona(null)
-  }
-
-  const formatTime = (secs) => {
-    const m = Math.floor(secs / 60).toString().padStart(2, '0')
-    const s = (secs % 60).toString().padStart(2, '0')
-    return `${m}:${s}`
-  }
-
-  // ─── STAGE 1: PERSONA SELECTION ───────────────────────────────────────────
-  if (phase === SESSION_PHASES.IDLE) {
-    return (
-      <div className="flex-1 flex flex-col gap-6 p-6 overflow-y-auto select-none">
-        
-        {/* Header */}
-        <div>
-          <h1 className="text-xl font-black text-white flex items-center gap-2">
-            <Flame className="w-5 h-5 text-indigo-400" />
-            3D HR Avatar Placement Interview
-          </h1>
-          <p className="text-xs text-gray-400 font-semibold mt-1">
-            Conduct a dynamic voice-driven mock interview with our interactive 3D virtual recruiters.
-          </p>
-        </div>
-
-        {/* Persona grid selection */}
-        <div className="grid md:grid-cols-2 gap-6 max-w-4xl w-full mx-auto my-auto py-4">
-          {Object.entries(PERSONAS).map(([key, data]) => (
-            <div 
-              key={key}
-              className={`rounded-3xl border border-white/[0.06] bg-slate-900/40 p-6 flex flex-col justify-between shadow-xl transition-all duration-300 hover:scale-[1.02] hover:border-white/10 relative overflow-hidden`}
-            >
-              {/* background dynamic aura */}
-              <div className={`absolute inset-0 bg-gradient-to-br ${data.bgGradient} opacity-40`} />
-              
-              <div className="relative z-10">
-                {/* Photo & Identity row */}
-                <div className="flex items-center gap-4 mb-4">
-                  <div className={`w-16 h-16 rounded-full overflow-hidden border-2 ${data.borderColor} shadow-lg`}>
-                    <img src={data.image} alt={data.name} className="w-full h-full object-cover" />
-                  </div>
-                  <div>
-                    <h2 className="text-sm font-black text-white">{data.name}</h2>
-                    <span className={`text-[10px] font-black uppercase tracking-wider block ${data.accentColor}`}>
-                      {data.title}
-                    </span>
-                    <span className="text-[9px] text-gray-400 block font-bold mt-0.5">{data.company}</span>
-                  </div>
-                </div>
-
-                <p className="text-[11px] text-gray-300 font-medium leading-relaxed mb-6">
-                  {data.desc}
-                </p>
-              </div>
-
-              <button
-                onClick={() => handleStartSession(key)}
-                className={`w-full py-2.5 rounded-xl text-xs font-bold text-white shadow-lg transition-all ${data.buttonColor} relative z-10 flex items-center justify-center gap-1.5`}
-              >
-                <span>Select & Start Interview</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ))}
-        </div>
-
-      </div>
-    )
-  }
-
-  // ─── STAGE 3: INTERVIEW LOG SUMMARY ───────────────────────────────────────
-  if (phase === SESSION_PHASES.COMPLETE) {
-    const persona = PERSONAS[selectedPersona]
-    return (
-      <div className="flex-1 flex flex-col gap-6 p-6 overflow-y-auto">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/5 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-              <CheckCircle className="w-5 h-5 text-emerald-400" />
-            </div>
-            <div>
-              <h1 className="text-sm font-black text-white uppercase tracking-wider">Interview Completed</h1>
-              <p className="text-[10px] text-gray-400 font-bold">Session logs recorded successfully</p>
-            </div>
-          </div>
-
-          <button
-            onClick={handleExit}
-            className="px-4 py-2 rounded-xl bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] text-xs font-bold text-gray-300 transition-colors flex items-center gap-1.5"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Return to Dashboard</span>
-          </button>
-        </div>
-
-        {/* Overview Stats row */}
-        <div className="grid grid-cols-3 gap-4 max-w-4xl w-full mx-auto select-none">
-          <div className="rounded-2xl border border-white/5 bg-slate-900/30 p-4 flex items-center gap-3">
-            <Clock className="w-5 h-5 text-indigo-400" />
-            <div>
-              <span className="text-[9px] text-gray-500 block uppercase font-black">Time Spent</span>
-              <span className="text-xs font-black text-white">{formatTime(elapsedTime)}</span>
-            </div>
-          </div>
-          <div className="rounded-2xl border border-white/5 bg-slate-900/30 p-4 flex items-center gap-3">
-            <Briefcase className="w-5 h-5 text-emerald-400" />
-            <div>
-              <span className="text-[9px] text-gray-500 block uppercase font-black">Interviewer</span>
-              <span className="text-xs font-black text-white">{persona.name}</span>
-            </div>
-          </div>
-          <div className="rounded-2xl border border-white/5 bg-slate-900/30 p-4 flex items-center gap-3">
-            <Award className="w-5 h-5 text-amber-400" />
-            <div>
-              <span className="text-[9px] text-gray-500 block uppercase font-black">Questions</span>
-              <span className="text-xs font-black text-white">{numQuestions} / {numQuestions}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Q&A logs */}
-        <div className="max-w-4xl w-full mx-auto flex flex-col gap-4 mt-2">
-          <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest">Q&A Dialogue Log</h2>
-          {qaHistory.map((item, idx) => (
-            <div key={idx} className="rounded-2xl border border-white/5 bg-slate-900/40 p-5 flex flex-col gap-3.5">
-              
-              {/* Question */}
-              <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full overflow-hidden border border-white/10 shrink-0 mt-0.5">
-                  <img src={persona.image} alt={persona.name} className="w-full h-full object-cover" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-[9px] text-gray-400 font-black uppercase tracking-wider">{persona.name}</span>
-                    <span className="px-1.5 py-0.5 rounded bg-white/[0.04] text-[8px] font-bold text-gray-400 uppercase">{item.category}</span>
-                  </div>
-                  <p className="text-xs font-bold text-white leading-relaxed">{item.question}</p>
-                </div>
-              </div>
-
-              {/* Answer */}
-              <div className="flex items-start gap-3 border-t border-white/5 pt-3.5">
-                <div className="w-6 h-6 rounded-full bg-indigo-500/10 border border-indigo-500/20 shrink-0 flex items-center justify-center text-[9px] font-black text-indigo-400 mt-0.5">
-                  ME
-                </div>
-                <div className="flex-1">
-                  <span className="text-[9px] text-gray-400 font-black uppercase tracking-wider block mb-0.5">Your Response</span>
-                  <p className="text-xs font-medium text-gray-300 leading-relaxed italic">
-                    "{item.answer}"
-                  </p>
-                </div>
-              </div>
-
-            </div>
-          ))}
-        </div>
-
-        {/* Retry row */}
-        <div className="flex justify-center py-6">
-          <button
-            onClick={() => handleStartSession(selectedPersona)}
-            className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-black text-white shadow-lg transition-all flex items-center gap-1.5"
-          >
-            <RefreshCw className="w-4 h-4" />
-            <span>Conduct Another Session</span>
-          </button>
-        </div>
-
-      </div>
-    )
-  }
-
-  // ─── STAGE 2: ACTIVE 3D CALL INTERFACE ────────────────────────────────────
-  const persona = PERSONAS[selectedPersona]
   return (
-    <div className="flex-1 flex gap-5 p-5 min-h-0 relative overflow-hidden select-none">
-      
-      {/* Left Column: 3D Video viewport and controls */}
-      <div className="flex-1 flex flex-col gap-4 min-h-0">
-        
-        {/* Header toolbar */}
-        <div className="flex items-center justify-between border-b border-white/5 pb-2 shrink-0">
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={handleExit}
-              className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] flex items-center justify-center text-gray-300 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-            <div>
-              <span className="text-[10px] text-gray-400 font-black uppercase tracking-wider block">Live Placement Chamber</span>
-              <h1 className="text-xs font-black text-white leading-none mt-0.5">Interview Session with {persona.name}</h1>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4 text-[10px] font-bold text-gray-500">
-            <span className="flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-gray-400" />
-              Time: <span className="text-white font-mono">{formatTime(elapsedTime)}</span>
-            </span>
-            <span>
-              Q: <span className="text-white font-bold">{currentIndex + 1} / {numQuestions}</span>
-            </span>
-          </div>
+    <motion.div
+      style={{
+        ...pageContainer,
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+      }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <motion.div
+        style={{
+          ...glassCard,
+          padding: '48px',
+          maxWidth: '480px',
+          width: '100%',
+        }}
+        initial={{ scale: 0.95 }}
+        animate={{ scale: 1 }}
+        transition={{ delay: 0.2 }}
+      >
+        {/* Icon */}
+        <div style={{
+          width: '72px',
+          height: '72px',
+          borderRadius: '50%',
+          background: 'rgba(139,92,246,0.1)',
+          border: '1px solid rgba(139,92,246,0.2)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: '0 auto 24px',
+        }}>
+          <FileText style={{ width: '32px', height: '32px', color: '#8B5CF6' }} />
         </div>
 
-        {/* Avatar Viewport */}
-        <div className="flex-1 min-h-0 relative">
-          <HRAvatar 
-            persona={selectedPersona} 
-            amplitude={amplitude} 
-            isSpeaking={isSpeaking} 
+        <h2 style={{
+          fontSize: '22px',
+          fontWeight: '700',
+          color: '#e2e8f0',
+          marginBottom: '12px',
+        }}>
+          Resume Required
+        </h2>
+
+        <p style={{
+          fontSize: '14px',
+          color: '#94a3b8',
+          lineHeight: '1.6',
+          marginBottom: '32px',
+        }}>
+          To conduct a personalized AI interview, we need your resume data. 
+          Please upload and analyze your resume first in the Resume Analysis module.
+        </p>
+
+        <motion.button
+          onClick={() => navigate('/dashboard/resume')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            width: '100%',
+            padding: '14px 24px',
+            borderRadius: '12px',
+            background: 'linear-gradient(135deg, #7C3AED, #8B5CF6)',
+            color: '#fff',
+            fontSize: '15px',
+            fontWeight: '600',
+            border: 'none',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+          whileHover={{ scale: 1.02, boxShadow: '0 0 24px rgba(139,92,246,0.3)' }}
+          whileTap={{ scale: 0.98 }}
+        >
+          Go to Resume Analysis
+          <ArrowRight style={{ width: '16px', height: '16px' }} />
+        </motion.button>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+// ─── Interviewer Card ────────────────────────────────────────
+function InterviewerCard({ persona, isSelected, onSelect }) {
+  const data = PERSONAS[persona]
+  
+  return (
+    <motion.button
+      onClick={() => onSelect(persona)}
+      style={{
+        ...glassCard,
+        padding: '24px',
+        cursor: 'pointer',
+        position: 'relative',
+        overflow: 'hidden',
+        textAlign: 'left',
+        width: '100%',
+        border: isSelected
+          ? `2px solid ${data.accentColor}`
+          : '1px solid rgba(255,255,255,0.08)',
+        boxShadow: isSelected
+          ? `0 0 30px ${data.accentColor}22, inset 0 0 30px ${data.accentColor}08`
+          : 'none',
+        transition: 'all 0.3s ease',
+      }}
+      whileHover={{ scale: 1.01, y: -2 }}
+      whileTap={{ scale: 0.99 }}
+    >
+      {/* Selected badge */}
+      {isSelected && (
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          style={{
+            position: 'absolute',
+            top: '12px',
+            right: '12px',
+            width: '28px',
+            height: '28px',
+            borderRadius: '50%',
+            background: data.accentColor,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <CheckCircle style={{ width: '16px', height: '16px', color: '#fff' }} />
+        </motion.div>
+      )}
+
+      {/* Avatar + Info */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+        <div style={{
+          width: '64px',
+          height: '64px',
+          borderRadius: '50%',
+          overflow: 'hidden',
+          border: `2px solid ${isSelected ? data.accentColor : 'rgba(255,255,255,0.1)'}`,
+          flexShrink: 0,
+        }}>
+          <img
+            src={data.photo}
+            alt={data.name}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
-
-          {/* Quick status cards overlaid */}
-          <div className="absolute top-4 left-4 z-20 flex flex-col gap-1.5">
-            <span className="px-3.5 py-1.5 rounded-xl bg-slate-950/80 border border-white/5 text-[9px] font-black text-white uppercase tracking-wider inline-flex items-center gap-1.5 backdrop-blur-sm">
-              <span className={`w-1.5 h-1.5 rounded-full ${isSpeaking ? 'bg-fuchsia-400 animate-pulse' : 'bg-gray-500'}`} />
-              {persona.name} ({persona.title})
-            </span>
-            {phase === SESSION_PHASES.ASKING && (
-              <span className="px-3.5 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-[9px] font-black text-indigo-300 uppercase tracking-wider inline-flex items-center gap-1.5 backdrop-blur-sm">
-                Interviewer Speaking
-              </span>
-            )}
-            {phase === SESSION_PHASES.LISTENING && (
-              <span className="px-3.5 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-black text-emerald-300 uppercase tracking-wider inline-flex items-center gap-1.5 backdrop-blur-sm">
-                Mic Open — Spoken Answer Mode
-              </span>
-            )}
-            {phase === SESSION_PHASES.LOADING_QUESTION && (
-              <span className="px-3.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[9px] font-black text-amber-300 uppercase tracking-wider inline-flex items-center gap-1.5 backdrop-blur-sm animate-pulse">
-                Fetching Next Question...
-              </span>
-            )}
-          </div>
         </div>
+        <div>
+          <h3 style={{ fontSize: '17px', fontWeight: '700', color: '#e2e8f0', marginBottom: '2px' }}>
+            {data.name}
+          </h3>
+          <p style={{ fontSize: '12px', fontWeight: '600', color: data.accentColor, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            {data.title}
+          </p>
+          <p style={{ fontSize: '11px', color: '#64748b' }}>{data.company}</p>
+        </div>
+      </div>
 
-        {/* Spoken Text Transcription or Type Control */}
-        <InterviewControls
-          isListening={isListening}
-          transcript={transcript}
-          interimResult={interimResult}
-          micError={micError}
-          isSpeechSupported={isSpeechSupported}
-          onDoneAnswering={handleDoneAnswering}
-          onExit={handleExit}
-          manualAnswerText={manualAnswerText}
-          setManualAnswerText={setManualAnswerText}
+      {/* Description */}
+      <p style={{ fontSize: '13px', color: '#94a3b8', lineHeight: '1.5', marginBottom: '12px' }}>
+        {data.focus}
+      </p>
+
+      {/* Skills tags */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+        {data.skills.map(skill => (
+          <span
+            key={skill}
+            style={{
+              fontSize: '10px',
+              fontWeight: '600',
+              padding: '3px 8px',
+              borderRadius: '6px',
+              background: data.accentBg,
+              color: data.accentColor,
+            }}
+          >
+            {skill}
+          </span>
+        ))}
+      </div>
+
+      {/* CTA */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '8px',
+        marginTop: '16px',
+        padding: '10px',
+        borderRadius: '10px',
+        background: isSelected
+          ? `linear-gradient(135deg, ${data.accentColor}dd, ${data.accentColor})`
+          : 'rgba(255,255,255,0.04)',
+        color: isSelected ? '#fff' : '#94a3b8',
+        fontSize: '13px',
+        fontWeight: '600',
+        transition: 'all 0.3s',
+      }}>
+        {isSelected ? 'Selected' : 'Select & Start Interview'}
+        <ChevronRight style={{ width: '14px', height: '14px' }} />
+      </div>
+    </motion.button>
+  )
+}
+
+// ─── Interview Setup Screen ──────────────────────────────────
+function InterviewSetup({ resumeData, candidateName, onStart }) {
+  const [selectedPersona, setSelectedPersona] = useState('sarah')
+  const [selectedDifficulty, setSelectedDifficulty] = useState('Medium')
+  const [numQuestions, setNumQuestions] = useState(5)
+
+  const resumeScore = resumeData?.coach_report?.current_score
+    || resumeData?.resume_score?.total
+    || resumeData?.score
+    || null
+
+  const handleStart = useCallback(() => {
+    onStart({
+      persona: selectedPersona,
+      difficulty: selectedDifficulty,
+      numQuestions,
+    })
+  }, [selectedPersona, selectedDifficulty, numQuestions, onStart])
+
+  return (
+    <motion.div
+      style={pageContainer}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4 }}
+    >
+      {/* Page Header */}
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
+          <Sparkles style={{ width: '24px', height: '24px', color: '#8B5CF6' }} />
+          <h1 style={{ fontSize: '24px', fontWeight: '800', color: '#e2e8f0' }}>
+            AI Video Interview Room
+          </h1>
+        </div>
+        <p style={{ fontSize: '14px', color: '#94a3b8', marginLeft: '36px' }}>
+          Conduct a dynamic voice-driven mock interview with our interactive virtual recruiters.
+        </p>
+      </div>
+
+      {/* Main Grid: Interviewers + Config */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 320px', gap: '20px', flex: 1 }}>
+        {/* Interviewer Cards */}
+        {Object.keys(PERSONAS).map(key => (
+          <InterviewerCard
+            key={key}
+            persona={key}
+            isSelected={selectedPersona === key}
+            onSelect={setSelectedPersona}
+          />
+        ))}
+
+        {/* Configuration Panel */}
+        <div style={{ ...glassCard, padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Target style={{ width: '16px', height: '16px', color: '#8B5CF6' }} />
+            Interview Configuration
+          </h3>
+
+          {/* Interview Type */}
+          <div>
+            <label style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px', display: 'block' }}>
+              Interview Type
+            </label>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              background: 'rgba(139,92,246,0.1)',
+              border: '1px solid rgba(139,92,246,0.2)',
+            }}>
+              <Video style={{ width: '14px', height: '14px', color: '#8B5CF6' }} />
+              <span style={{ fontSize: '13px', fontWeight: '600', color: '#A78BFA' }}>Video Interview</span>
+            </div>
+          </div>
+
+          {/* Difficulty */}
+          <div>
+            <label style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px', display: 'block' }}>
+              Difficulty
+            </label>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              {DIFFICULTIES.map(d => (
+                <motion.button
+                  key={d.value}
+                  onClick={() => setSelectedDifficulty(d.value)}
+                  style={{
+                    flex: 1,
+                    padding: '8px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    border: selectedDifficulty === d.value
+                      ? `1px solid ${d.color}`
+                      : '1px solid rgba(255,255,255,0.06)',
+                    background: selectedDifficulty === d.value
+                      ? `${d.color}18`
+                      : 'rgba(255,255,255,0.03)',
+                    color: selectedDifficulty === d.value ? d.color : '#94a3b8',
+                    transition: 'all 0.2s',
+                  }}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  {d.label}
+                </motion.button>
+              ))}
+            </div>
+          </div>
+
+          {/* Number of Questions */}
+          <div>
+            <label style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px', display: 'block' }}>
+              Questions
+            </label>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              {[3, 5, 7, 10].map(n => (
+                <motion.button
+                  key={n}
+                  onClick={() => setNumQuestions(n)}
+                  style={{
+                    flex: 1,
+                    padding: '8px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    border: numQuestions === n
+                      ? '1px solid #8B5CF6'
+                      : '1px solid rgba(255,255,255,0.06)',
+                    background: numQuestions === n
+                      ? 'rgba(139,92,246,0.15)'
+                      : 'rgba(255,255,255,0.03)',
+                    color: numQuestions === n ? '#A78BFA' : '#94a3b8',
+                    transition: 'all 0.2s',
+                  }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  {n}
+                </motion.button>
+              ))}
+            </div>
+          </div>
+
+          {/* Duration Estimate */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)' }}>
+            <Clock style={{ width: '14px', height: '14px', color: '#64748b' }} />
+            <span style={{ fontSize: '12px', color: '#94a3b8' }}>Est. Duration:</span>
+            <span style={{ fontSize: '12px', fontWeight: '600', color: '#e2e8f0' }}>
+              {numQuestions * 3} min
+            </span>
+          </div>
+
+          {/* Language */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)' }}>
+            <Globe style={{ width: '14px', height: '14px', color: '#64748b' }} />
+            <span style={{ fontSize: '12px', color: '#94a3b8' }}>Language:</span>
+            <span style={{ fontSize: '12px', fontWeight: '600', color: '#e2e8f0' }}>English</span>
+          </div>
+
+          {/* Resume Status */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 12px',
+            borderRadius: '8px',
+            background: 'rgba(34,197,94,0.08)',
+            border: '1px solid rgba(34,197,94,0.15)',
+          }}>
+            <CheckCircle style={{ width: '16px', height: '16px', color: '#22c55e' }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '12px', fontWeight: '600', color: '#22c55e' }}>Resume Analyzed</div>
+              <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+                {candidateName || 'Candidate'}
+                {resumeScore ? ` • Score: ${resumeScore}/100` : ''}
+              </div>
+            </div>
+          </div>
+
+          {/* Spacer */}
+          <div style={{ flex: 1 }} />
+
+          {/* Start Button */}
+          <motion.button
+            onClick={handleStart}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              width: '100%',
+              padding: '14px',
+              borderRadius: '12px',
+              background: `linear-gradient(135deg, ${PERSONAS[selectedPersona].accentColor}dd, ${PERSONAS[selectedPersona].accentColor})`,
+              color: '#fff',
+              fontSize: '15px',
+              fontWeight: '700',
+              border: 'none',
+              cursor: 'pointer',
+              boxShadow: `0 4px 20px ${PERSONAS[selectedPersona].accentColor}33`,
+              transition: 'all 0.2s',
+            }}
+            whileHover={{ scale: 1.02, boxShadow: `0 6px 30px ${PERSONAS[selectedPersona].accentColor}44` }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Zap style={{ width: '18px', height: '18px' }} />
+            Start Interview
+            <ArrowRight style={{ width: '16px', height: '16px' }} />
+          </motion.button>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+// ─── Main Page Component ─────────────────────────────────────
+export default function VideoInterviewPage() {
+  const { resumeData, candidateName } = useApp()
+  
+  // Page state: 'setup' | 'room'
+  const [pageState, setPageState] = useState('setup')
+  const [interviewConfig, setInterviewConfig] = useState(null)
+
+  const handleStart = useCallback((config) => {
+    setInterviewConfig(config)
+    setPageState('room')
+  }, [])
+
+  const handleExit = useCallback(() => {
+    setPageState('setup')
+    setInterviewConfig(null)
+  }, [])
+
+  // ─── No Resume Guard ───────────────────────────────────
+  if (!resumeData) {
+    return <NoResumeScreen />
+  }
+
+  // ─── Interview Room ────────────────────────────────────
+  if (pageState === 'room' && interviewConfig) {
+    return (
+      <AnimatePresence mode="wait">
+        <motion.div
+          key="room"
+          style={{ height: '100%', width: '100%' }}
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.98 }}
+          transition={{ duration: 0.3 }}
+        >
+          <VideoInterviewRoom
+            persona={interviewConfig.persona}
+            difficulty={interviewConfig.difficulty}
+            numQuestions={interviewConfig.numQuestions}
+            onExit={handleExit}
+          />
+        </motion.div>
+      </AnimatePresence>
+    )
+  }
+
+  // ─── Interview Setup ───────────────────────────────────
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key="setup"
+        style={{ height: '100%', width: '100%' }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <InterviewSetup
+          resumeData={resumeData}
+          candidateName={candidateName}
+          onStart={handleStart}
         />
-
-      </div>
-
-      {/* Right Column: AI Criteria & real-time STAR response tracker */}
-      <div className="w-80 bg-slate-900/60 rounded-3xl border border-white/[0.08] p-5 flex flex-col gap-4 overflow-y-auto shrink-0 select-none">
-        
-        {/* 1. Category Indicator */}
-        <div className="pb-3 border-b border-white/5 space-y-1">
-          <span className="text-[9px] text-gray-500 font-black uppercase tracking-widest block">Session Topic</span>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-white">
-              {currentQuestion?.category || 'Behavioral'}
-            </span>
-            <span className="px-2 py-0.5 rounded bg-white/[0.04] text-[9px] font-black text-gray-400 uppercase tracking-wider border border-white/5">
-              {currentQuestion?.difficulty || 'Medium'}
-            </span>
-          </div>
-        </div>
-
-        {/* 2. Real-Time STAR response checker */}
-        <div className="space-y-2.5 pb-3 border-b border-white/5">
-          <span className="text-[9px] text-gray-400 font-black uppercase tracking-widest block">STAR Method Tracker</span>
-          <p className="text-[10px] text-gray-500 font-semibold mb-1">Your response structure (evaluates as you type/speak):</p>
-          <div className="grid grid-cols-2 gap-2 text-[9px] font-extrabold">
-            <div className={`p-2.5 rounded-xl border transition-all duration-300 flex flex-col gap-0.5 ${
-              starStatus.s 
-                ? 'border-cyan-500/40 bg-cyan-950/20 shadow-[0_0_12px_rgba(6,182,212,0.15)] text-cyan-300' 
-                : 'border-white/5 bg-slate-950/40 text-gray-500'
-            }`}>
-              <span className={`text-xs font-black transition-colors ${starStatus.s ? 'text-cyan-400' : 'text-gray-600'}`}>
-                S {starStatus.s ? '✓' : ''}
-              </span>
-              <span className="text-[8px] uppercase tracking-wider">Situation</span>
-            </div>
-
-            <div className={`p-2.5 rounded-xl border transition-all duration-300 flex flex-col gap-0.5 ${
-              starStatus.t 
-                ? 'border-emerald-500/40 bg-emerald-950/20 shadow-[0_0_12px_rgba(16,185,129,0.15)] text-emerald-300' 
-                : 'border-white/5 bg-slate-950/40 text-gray-500'
-            }`}>
-              <span className={`text-xs font-black transition-colors ${starStatus.t ? 'text-emerald-400' : 'text-gray-600'}`}>
-                T {starStatus.t ? '✓' : ''}
-              </span>
-              <span className="text-[8px] uppercase tracking-wider">Task</span>
-            </div>
-
-            <div className={`p-2.5 rounded-xl border transition-all duration-300 flex flex-col gap-0.5 ${
-              starStatus.a 
-                ? 'border-amber-500/40 bg-amber-950/20 shadow-[0_0_12px_rgba(245,158,11,0.15)] text-amber-300' 
-                : 'border-white/5 bg-slate-950/40 text-gray-500'
-            }`}>
-              <span className={`text-xs font-black transition-colors ${starStatus.a ? 'text-amber-400' : 'text-gray-600'}`}>
-                A {starStatus.a ? '✓' : ''}
-              </span>
-              <span className="text-[8px] uppercase tracking-wider">Action</span>
-            </div>
-
-            <div className={`p-2.5 rounded-xl border transition-all duration-300 flex flex-col gap-0.5 ${
-              starStatus.r 
-                ? 'border-fuchsia-500/40 bg-fuchsia-950/20 shadow-[0_0_12px_rgba(217,70,239,0.15)] text-fuchsia-300' 
-                : 'border-white/5 bg-slate-950/40 text-gray-500'
-            }`}>
-              <span className={`text-xs font-black transition-colors ${starStatus.r ? 'text-fuchsia-400' : 'text-gray-600'}`}>
-                R {starStatus.r ? '✓' : ''}
-              </span>
-              <span className="text-[8px] uppercase tracking-wider">Result</span>
-            </div>
-          </div>
-        </div>
-
-        {/* 3. Speaking advice */}
-        <div className="space-y-2 flex-1 flex flex-col justify-end">
-          <span className="text-[9px] text-gray-400 font-black uppercase tracking-widest block mb-2">Speaking Checklist</span>
-          <div className="space-y-2 text-[10px] font-bold text-gray-400">
-            <div className="flex justify-between items-center bg-slate-950/40 p-2.5 rounded-xl border border-white/5">
-              <span>Speech Clarity</span>
-              <span className="text-white">Active</span>
-            </div>
-            <div className="flex justify-between items-center bg-slate-950/40 p-2.5 rounded-xl border border-white/5">
-              <span>Syllable Pacing</span>
-              <span className="text-white">120 wpm</span>
-            </div>
-            <div className="flex justify-between items-center bg-slate-950/40 p-2.5 rounded-xl border border-white/5">
-              <span>Volume Status</span>
-              <span className="text-white">Normal</span>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-    </div>
+      </motion.div>
+    </AnimatePresence>
   )
 }

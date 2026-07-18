@@ -13,7 +13,7 @@ const NAV_ITEMS = [
   { to: '/dashboard',           icon: Home,      label: 'Dashboard',       badge: null },
   { to: '/dashboard/resume',    icon: FileText,  label: 'Resume Analysis', badge: null },
   { to: '/dashboard/interview', icon: Briefcase, label: 'Interview',       badge: null },
-  { to: '/dashboard/video-interview', icon: Video,     label: '3D Interview',    badge: '3D' },
+  { to: '/dashboard/video-interview', icon: Video, label: '3D Interview', badge: '3D' },
   { to: '/dashboard/coach',     icon: Mic,       label: 'Coach',           badge: 'New' },
   { to: '/dashboard/quiz',      icon: Brain,     label: 'Quiz Practice',   badge: 'New' },
   { to: '/dashboard/analytics', icon: BarChart2, label: 'Analytics',       badge: null },
@@ -75,7 +75,12 @@ export default function Sidebar() {
             <AnimatePresence>
               {!collapsed && badge && (
                 <motion.span
-                  className="px-1.5 py-0.5 text-[10px] font-bold bg-primary-100 text-primary-700 dark:bg-primary-500/15 dark:text-primary-300 rounded-md"
+                  className={clsx(
+                    'px-1.5 py-0.5 text-[10px] font-bold rounded-md',
+                    badge === '3D'
+                      ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/25 shadow-[0_0_8px_rgba(6,182,212,0.25)]'
+                      : 'bg-primary-100 text-primary-700 dark:bg-violet-500/15 dark:text-violet-300 border border-violet-500/15'
+                  )}
                   initial={{ opacity: 0, scale: 0.5 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.5 }}

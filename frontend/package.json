@@ -12,8 +12,14 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
+    "@mediapipe/tasks-vision": "^0.10.35",
+    "@sapphi-red/web-noise-suppressor": "^0.3.5",
     "axios": "^1.6.7",
     "clsx": "^2.1.0",
+    "dompurify": "^3.4.12",
     "figlet": "^1.11.0",
     "framer-motion": "^11.0.8",
     "lucide-react": "^0.344.0",
@@ -22,6 +28,7 @@
     "react-dropzone": "^14.2.3",
     "react-hot-toast": "^2.4.1",
     "react-router-dom": "^6.22.1",
+    "react-webcam": "^7.2.0",
     "recharts": "^2.12.0",
     "three": "^0.185.1",
     "zustand": "^5.0.14"

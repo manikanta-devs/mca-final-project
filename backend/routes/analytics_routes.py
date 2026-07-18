@@ -3,7 +3,7 @@ import logging
 import os
 
 from services.analytics_service import AnalyticsService
-from utils.auth_utils import token_required
+from utils.auth_utils import token_required, verify_ownership
 from ai.gemini_service import GeminiService
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,12 @@ def get_summary():
 def get_sessions():
     """Get all completed sessions with scores"""
     try:
-        limit = int(request.args.get("limit", 20))
+        try:
+            limit = int(request.args.get("limit", 20))
+            if limit < 1 or limit > 100:
+                limit = 20
+        except (ValueError, TypeError):
+            limit = 20
         sessions = analytics_service.get_all_sessions(limit=limit, username=request.username)
         return jsonify({"success": True, "sessions": sessions}), 200
     except Exception as e:
@@ -57,8 +62,9 @@ def get_session(session_id):
         session = analytics_service.get_session_details(session_id)
         if not session:
             return jsonify({"error": "Session not found"}), 404
-        if session.get("username") and session.get("username") != request.username:
-            return jsonify({"error": "Forbidden"}), 403
+        ownership_error = verify_ownership(session, request)
+        if ownership_error:
+            return ownership_error
         return jsonify({"success": True, "session": session}), 200
     except Exception as e:
         logger.error(f"Analytics session error: {e}")
@@ -165,7 +171,7 @@ def clear_analytics():
     if not developer_tools_enabled():
         return jsonify({"error": "Developer tools are disabled"}), 403
     try:
-        analytics_service.clear_all()
+        analytics_service.clear_all(username=request.username)
         return jsonify({"success": True, "message": "All analytics data cleared"}), 200
     except Exception as e:
         logger.error(f"Clear analytics error: {e}")

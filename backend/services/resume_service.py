@@ -27,7 +27,7 @@ class ResumeService:
                 banner = (
                     "\n"
                     "================================================================================\n"
-                    "⚠️  WARNING: spaCy model 'en_core_web_sm' was not found!\n"
+                    "[WARNING]: spaCy model 'en_core_web_sm' was not found!\n"
                     "   Resume parsing accuracy will be degraded (falling back to regex matches).\n"
                     "   Fix this by downloading the model: python -m spacy download en_core_web_sm\n"
                     "================================================================================\n"
@@ -41,7 +41,7 @@ class ResumeService:
             banner = (
                 "\n"
                 "================================================================================\n"
-                "⚠️  WARNING: spaCy library is not available!\n"
+                "[WARNING]: spaCy library is not available!\n"
                 "   Resume parsing will use basic regex fallback routines.\n"
                 f"   Error: {exc}\n"
                 "================================================================================\n"

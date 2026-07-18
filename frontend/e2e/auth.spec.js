@@ -6,7 +6,7 @@ test('Authentication Flow Test (Register, Login, Redirect, Logout)', async ({ pa
 
   // Expect redirection to /auth
   await expect(page).toHaveURL(/\/auth/);
-  await expect(page.locator('h1')).toContainText('AstraPrep AI');
+  await expect(page.locator('h1')).toContainText(/AstraPrep AI|TalentForge AI/);
   await expect(page.getByRole('button', { name: 'Sign In', exact: true }).first()).toBeVisible();
 
   // Generate a unique username

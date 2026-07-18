@@ -97,6 +97,7 @@ import InterviewStatsBar from '../components/InterviewStatsBar'
 
 import PanelAvatar, { PanelRoster } from '../components/PanelAvatar'
 import AIInterviewerRoom from '../components/AIInterviewerRoom'
+import VirtualInterviewRoom from '../components/VirtualInterviewRoom'
 import VoiceCaptureStudio from '../components/VoiceCaptureStudio'
 import InterviewCoachPanel from '../components/InterviewCoachPanel'
 import AdvancedToolPanel from '../components/AdvancedToolPanel'
@@ -105,316 +106,14 @@ import AdvancedToolPanel from '../components/AdvancedToolPanel'
 import { PANEL_MEMBERS, getPanelMemberForQuestion } from '../utils/panelInterviewer'
 import { createEmotionSnapshot, startEmotionSampler } from '../utils/emotionAnalysis'
 
-
-
-
-
-const DIFF_OPTIONS = [
-
-
-  { value: 'easy', label: 'Easy', desc: 'Fundamental concepts' },
-
-
-  { value: 'medium', label: 'Medium', desc: 'Industry standard level' },
-
-
-  { value: 'hard', label: 'Hard', desc: 'Senior/expert level' },
-
-
-]
-
-
-
-
-
-const ROLE_OPTIONS = [
-
-
-  { value: 'software_engineer', label: 'Software Engineer' },
-
-
-  { value: 'frontend_developer', label: 'Frontend Developer' },
-
-
-  { value: 'backend_developer', label: 'Backend Developer' },
-
-
-  { value: 'fullstack_developer', label: 'Full Stack Developer' },
-
-
-  { value: 'data_scientist', label: 'Data Scientist' },
-
-
-  { value: 'ml_engineer', label: 'ML Engineer' },
-
-
-  { value: 'devops_engineer', label: 'DevOps Engineer' },
-
-
-  { value: 'product_manager', label: 'Product Manager' },
-
-
-]
-
-
-
-
-
-const FORMAT_OPTIONS = [
-  { value: 'text', label: 'Text', desc: 'Type your answers — no mic or camera needed', icon: 'type' },
-  { value: 'voice', label: 'Voice', desc: 'Speak your answers — mic only, no camera', icon: 'mic' },
-  { value: 'video', label: 'Video', desc: 'Speak + camera — full emotion & posture tracking', icon: 'video' },
-]
-
-const COMPANY_OPTIONS = [
-  { value: 'General', label: 'General', desc: 'Standard industry questions' },
-  { value: 'Google', label: 'Google', desc: 'Scale, Algorithmic & Googlyness' },
-  { value: 'Amazon', label: 'Amazon', desc: 'Leadership Principles & Depth' },
-  { value: 'Microsoft', label: 'Microsoft', desc: 'Robust Design & Collaboration' },
-  { value: 'Netflix', label: 'Netflix', desc: 'Freedom & Responsibility, Chaos' },
-  { value: 'Meta', label: 'Meta', desc: 'Fast execution & System design' },
-  { value: 'Custom', label: 'Custom', desc: 'Provide your own company/context' },
-]
-
-const VOICE_PROFILES = {
-  sarah: {
-    gender: 'female',
-    pitch: 1.08,
-    rate: 0.92,
-    preferredNames: ['zira', 'aria', 'jenny', 'susan', 'samantha', 'victoria', 'female', 'woman'],
-  },
-  marcus: {
-    gender: 'male',
-    pitch: 0.9,
-    rate: 0.9,
-    preferredNames: ['david', 'guy', 'mark', 'daniel', 'alex', 'male', 'man'],
-  },
-}
-
-const PANEL_VOICE_PROFILES = {
-  technical_lead: VOICE_PROFILES.marcus,
-  hr_manager: VOICE_PROFILES.sarah,
-  strict_manager: VOICE_PROFILES.marcus,
-}
-
-function chooseBrowserVoice(voices = [], profile = VOICE_PROFILES.sarah) {
-  const englishVoices = voices.filter(voice => {
-    const lang = (voice.lang || '').toLowerCase()
-    return lang.startsWith('en-us') || lang.startsWith('en-gb') || lang.startsWith('en')
-  })
-  const candidates = englishVoices.length ? englishVoices : voices
-
-  // 1. First priority: High-quality natural online voices matching the gender profile
-  // E.g., "Microsoft Aria Online (Natural)", "Microsoft Jenny Online (Natural)", "Microsoft Guy Online (Natural)"
-  const onlineNaturalMatch = candidates.find(voice => {
-    const name = voice.name.toLowerCase()
-    const isOnline = name.includes('online') || name.includes('natural') || name.includes('google') || name.includes('neural')
-    if (!isOnline) return false
-
-    if (profile.gender === 'female') {
-      return name.includes('aria') || name.includes('jenny') || name.includes('female') || name.includes('zira') || name.includes('samantha')
-    } else {
-      return name.includes('guy') || name.includes('male') || name.includes('david') || name.includes('mark')
-    }
-  })
-  if (onlineNaturalMatch) return onlineNaturalMatch
-
-  // 2. Second priority: Standard high-quality offline voices (Samantha on Mac, Siri, etc.)
-  const highQualityOfflineMatch = candidates.find(voice => {
-    const name = voice.name.toLowerCase()
-    if (profile.gender === 'female') {
-      return name.includes('samantha') || name.includes('siri') || name.includes('victoria') || name.includes('sara')
-    } else {
-      return name.includes('daniel') || name.includes('alex') || name.includes('fred') || name.includes('oliver')
-    }
-  })
-  if (highQualityOfflineMatch) return highQualityOfflineMatch
-
-  // 3. Third priority: Any voice matching the preferred terms list
-  const preferredTerms = profile.preferredNames || []
-  const preferredMatch = candidates.find(voice => {
-    const haystack = `${voice.name} ${voice.voiceURI} ${voice.lang}`.toLowerCase()
-    return preferredTerms.some(term => haystack.includes(term))
-  })
-  if (preferredMatch) return preferredMatch
-
-  // 4. Fourth priority: Fallback to gender match in offline local voices (e.g. Zira, David)
-  const localGenderMatch = candidates.find(voice => {
-    const name = voice.name.toLowerCase()
-    if (profile.gender === 'female') {
-      return name.includes('female') || name.includes('woman') || name.includes('zira') || name.includes('susan') || name.includes('hazel')
-    } else {
-      return name.includes('male') || name.includes('man') || name.includes('david') || name.includes('george') || name.includes('ravi')
-    }
-  })
-  if (localGenderMatch) return localGenderMatch
-
-  // 5. Ultimate fallback
-  return candidates[0] || null
-}
-
-
-function normalizeQuestion(question, index) {
-  return {
-    id: index + 1,
-    text: question.text,
-    category: question.category || 'General',
-    difficulty: question.difficulty || 'medium',
-    type: question.type || 'behavioral',
-    persona_id: question.persona_id,
-    round: question.round || question.category || 'Interview',
-    time_limit_seconds: question.time_limit_seconds || null,
-  }
-}
-
-function buildCorporateInterviewQuestions({ generatedQuestions = [], resumeData, candidateName, company, panelMode }) {
-  return (generatedQuestions || []).map((q, idx) => normalizeQuestion(q, idx))
-}
-
-
-function WalkInInterviewRoom({
-  candidateName = 'Candidate',
-  roleLabel = 'Candidate',
-  resumeData,
-  interviewerPersona = 'sarah',
-  interviewerName = 'Sarah Chen',
-  onBegin,
-  onBack,
-}) {
-  const [step, setStep] = useState(0)
-  const hasResume = Boolean(resumeData)
-  const topSkills = resumeData?.skills?.all?.slice(0, 4) || []
-  const steps = [
-    { label: 'Welcome', line: 'Good morning! Welcome to the AI Interview Platform. I am your virtual HR interviewer today.' },
-    { label: 'Resume Analyzed', line: hasResume ? 'Before we begin, I have successfully analyzed your resume and prepared personalized questions.' : 'Before we begin, I will conduct a standard company interview because no resume is currently loaded.' },
-    { label: 'Enter Room', line: 'Please come in, take a seat, and relax. This will feel like a real company interview.' },
-    { label: 'Greet HR', line: `Good morning, ${candidateName || 'Candidate'}. Please have a seat.` },
-    { label: 'Hand Resume', line: hasResume ? 'You hand over your resume. The interviewer scans your education, skills, projects, and experience.' : 'You hand over a resume copy. The interviewer will begin with general background questions.' },
-    { label: 'Begin', line: 'The interviewer closes the resume folder and starts with identity verification.' },
-  ]
-  const activeStep = steps[Math.min(step, steps.length - 1)]
-  const personaImage = interviewerPersona === 'marcus' ? '/interviewers/marcus_rodriguez.png' : '/interviewers/sarah_chen.png'
-
-  const advance = () => {
-    if (step >= steps.length - 1) onBegin?.()
-    else setStep(prev => prev + 1)
-  }
-
-  return (
-    <div className="min-h-[calc(100vh-5rem)] bg-slate-950 text-white overflow-hidden relative">
-      <div className="absolute inset-0 office-room-bg opacity-80" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_15%,rgba(56,189,248,0.16),transparent_34%),linear-gradient(180deg,rgba(2,6,23,0.15),rgba(2,6,23,0.92))]" />
-
-      <div className="relative z-10 max-w-6xl mx-auto px-4 py-8 lg:py-10">
-        <div className="flex items-center justify-between gap-3 mb-5">
-          <button onClick={onBack} className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-sm font-semibold text-white/70 hover:bg-white/10 hover:text-white transition-colors">
-            Back to setup
-          </button>
-          <div className="text-right">
-            <p className="text-[10px] uppercase tracking-[0.28em] text-cyan-300 font-bold">In-person simulation</p>
-            <p className="text-sm text-white/55">{roleLabel} interview room</p>
-          </div>
-        </div>
-
-        <div className="grid lg:grid-cols-[1.2fr_0.8fr] gap-5 items-stretch">
-          <div className="relative min-h-[540px] rounded-2xl border border-white/10 bg-slate-900/55 backdrop-blur-xl overflow-hidden shadow-2xl">
-            <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-white/10 to-transparent" />
-            <div className="absolute left-8 right-8 top-8 h-20 rounded-b-[40px] bg-cyan-100/10 border border-cyan-100/10 shadow-[0_0_90px_rgba(125,211,252,0.2)]" />
-            <div className="absolute left-[8%] right-[8%] bottom-20 h-40 rounded-t-[28px] bg-gradient-to-b from-slate-700 to-slate-950 border border-white/10 shadow-2xl" />
-            <div className="absolute left-[12%] right-[12%] bottom-32 h-16 rounded-xl bg-slate-800/95 border border-white/10" />
-            <div className="absolute left-[18%] bottom-36 w-28 h-16 rounded-lg bg-white/90 text-slate-900 p-2 shadow-xl transform -rotate-6 transition-all duration-500" style={{ opacity: step >= 4 ? 1 : 0.45, transform: step >= 4 ? 'translateX(250px) rotate(2deg)' : 'translateX(0) rotate(-6deg)' }}>
-              <div className="h-1.5 w-16 bg-slate-800 rounded mb-1.5" />
-              <div className="h-1 w-20 bg-slate-300 rounded mb-1" />
-              <div className="h-1 w-14 bg-slate-300 rounded mb-1" />
-              <div className="h-1 w-24 bg-cyan-300 rounded" />
-            </div>
-
-            <div className="absolute right-[13%] bottom-36 w-56 flex flex-col items-center">
-              <div className="relative w-44 aspect-[4/5] rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-slate-950">
-                <img src={personaImage} alt={interviewerName} className="w-full h-full object-cover object-[center_20%]" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/65 via-transparent to-transparent" />
-              </div>
-              <div className="mt-3 px-4 py-3 rounded-xl bg-slate-950/80 border border-white/10 text-center backdrop-blur">
-                <p className="font-black text-sm">{interviewerName}</p>
-                <p className="text-[11px] text-white/45">HR interview lead</p>
-              </div>
-            </div>
-
-            <div className="absolute left-[14%] bottom-24 w-36 flex flex-col items-center transition-all duration-500" style={{ transform: step >= 1 ? 'translateX(80px)' : 'translateX(0)' }}>
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-300 to-slate-200 border-4 border-slate-900 shadow-xl" />
-              <div className="w-28 h-36 -mt-1 rounded-t-[38px] bg-gradient-to-b from-blue-700 to-slate-950 border border-white/10" />
-              <div className="mt-2 text-center">
-                <p className="text-xs font-bold">{candidateName || 'Candidate'}</p>
-                <p className="text-[10px] text-white/45">Candidate</p>
-              </div>
-            </div>
-
-            <div className="absolute left-6 top-32 max-w-sm rounded-2xl border border-white/10 bg-slate-950/75 p-4 shadow-xl backdrop-blur">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-cyan-300 font-bold mb-2">Room moment</p>
-              <p className="text-base font-bold leading-snug">{activeStep.line}</p>
-              {step >= 4 && topSkills.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {topSkills.map(skill => (
-                    <span key={skill} className="px-2 py-1 rounded-full bg-cyan-400/10 border border-cyan-400/20 text-[10px] text-cyan-100 font-semibold">{skill}</span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-slate-900/70 backdrop-blur-xl p-5 flex flex-col justify-between shadow-2xl">
-            <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-cyan-300 font-bold mb-3">Interview sequence</p>
-              <h2 className="text-3xl font-black leading-tight mb-3">Walk in, submit resume, then answer naturally.</h2>
-              <p className="text-sm text-white/60 leading-relaxed mb-5">
-                This interview includes introduction, resume verification, HR round, technical round, coding-style prompt, situation questions, rapid fire, candidate questions, and final feedback.
-              </p>
-              <div className="space-y-3">
-                {steps.map((item, index) => (
-                  <div key={item.label} className={clsx('flex items-center gap-3 rounded-xl border px-3 py-3 transition-colors', index <= step ? 'bg-cyan-400/10 border-cyan-400/25 text-white' : 'bg-white/[0.03] border-white/10 text-white/40')}>
-                    <div className={clsx('w-7 h-7 rounded-full flex items-center justify-center text-xs font-black', index <= step ? 'bg-cyan-400 text-slate-950' : 'bg-white/10 text-white/40')}>{index + 1}</div>
-                    <div>
-                      <p className="text-sm font-bold">{item.label}</p>
-                      <p className="text-[11px] text-white/45">{index === 0 ? 'First impression' : index === 1 ? 'Professional greeting' : index === 2 ? 'Resume review' : 'Formal Q&A'}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <button onClick={advance} className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/30 transition-all">
-              {step >= steps.length - 1 ? 'Begin Real Interview' : steps[step + 1].label}
-              <Play className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-
-
-
-
-const PHASE = {
-
-
-  SETUP: 'setup',
-
-
-  GENERATING: 'generating',
-
-
-  ROOM_ENTRY: 'room_entry',
-
-
-  INTERVIEWING: 'interviewing',
-
-
-  EVALUATING: 'evaluating',
-
-
-}
+// ─── Extracted modules ──────────────────────────────────────────────────────
+import {
+  DIFF_OPTIONS, ROLE_OPTIONS, FORMAT_OPTIONS, COMPANY_OPTIONS,
+  VOICE_PROFILES, PANEL_VOICE_PROFILES, PHASE,
+} from '../constants/interviewConstants'
+import { chooseBrowserVoice } from '../utils/voiceUtils'
+import { normalizeQuestion, buildCorporateInterviewQuestions } from '../utils/questionUtils'
+import WalkInInterviewRoom from '../components/WalkInInterviewRoom'
 
 
 
@@ -560,7 +259,7 @@ export default function InterviewPage() {
 
   const [panelMode, setPanelMode] = useState(false)
   const [aiInterviewerMode, setAiInterviewerMode] = useState(true)
-  const [interviewerPersona, setInterviewerPersona] = useState('sarah')
+  const [interviewerPersona, setInterviewerPersona] = useState('nagma_hr')
   const [interviewerVoice, setInterviewerVoice] = useState(true)
   const [browserVoices, setBrowserVoices] = useState([])
   const [isInterviewerSpeaking, setIsInterviewerSpeaking] = useState(false)
@@ -587,6 +286,7 @@ export default function InterviewPage() {
   const lastSpeechTimeRef = useRef(Date.now())
   const lastTranscriptLengthRef = useRef(0)
   const silenceIntervalRef = useRef(null)
+  const engineSilenceRef = useRef(null)
   const isListeningRef = useRef(false)
   useEffect(() => {
     isListeningRef.current = isListening
@@ -872,6 +572,13 @@ export default function InterviewPage() {
 
 
   useEffect(() => {
+    // If using the high-fidelity video/voice room, disable the parent's automatic 
+    // TTS effect to prevent dual audio and out-of-sync playback. 
+    // The room will trigger TTS manually using the onSpeakQuestion callback.
+    if (interviewFormat === 'video' || interviewFormat === 'voice') {
+      return undefined
+    }
+
     if (!interviewerVoice || phase !== PHASE.INTERVIEWING || typeof window === 'undefined') {
       return undefined
     }
@@ -1363,14 +1070,17 @@ export default function InterviewPage() {
         lastSpeechTimeRef.current = Date.now()
         setEncouragementText('')
       } else if (transcript.length > 3) {
-        // Automatically submit onboarding responses after 3.5s of silence
-        // Automatically submit interview questions after 5.0s of silence
+        // Automatically submit onboarding responses after 6.0s of silence
+        // Automatically submit interview questions after 12.0s of silence
         const isOnboarding = !!zoomPhaseRef.current
-        const threshold = isOnboarding ? 3500 : 5000
+        const threshold = isOnboarding ? 6000 : 12000
         const timeSinceLastSpeech = Date.now() - lastSpeechTimeRef.current
         if (timeSinceLastSpeech > threshold) {
           console.log(`Candidate finished speaking. Silence threshold of ${threshold}ms reached. Automatically submitting.`);
           lastTranscriptLengthRef.current = 0
+          if (engineSilenceRef.current) {
+            engineSilenceRef.current(transcript)
+          }
           handleSubmitAnswerRef.current?.()
         }
       }
@@ -1561,6 +1271,98 @@ export default function InterviewPage() {
       }, 400)
     }
   }
+  // Stable callbacks for VirtualInterviewRoom mic open/close — must NOT be inline
+  // arrow functions or the stage-engine useEffect re-fires on every render.
+  const handleStageMicOpen = useCallback(() => {
+    startVoiceCapture().catch(() => {})
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleStageMicClose = useCallback(() => {
+    stopVoiceCapture({ keepTranscript: true }).catch(() => {})
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Custom speaker helper for VirtualInterviewRoom's Gemini/AI speaking stages
+  const speakVirtualQuestion = useCallback((text, { onEnded }) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) {
+      onEnded?.()
+      return
+    }
+    const synth = window.speechSynthesis
+    synth.cancel()
+
+    // Cleanly stop any existing capture before speaking the question
+    stopVoiceCapture({ keepTranscript: true }).catch(() => {})
+
+    const voiceProfile = panelMode
+      ? PANEL_VOICE_PROFILES[activePanelMember?.id] || VOICE_PROFILES.marcus
+      : VOICE_PROFILES[interviewerPersona] || VOICE_PROFILES.sarah
+    
+    // Fallback: browserVoices state might be empty, retrieve directly
+    const currentVoices = browserVoices.length ? browserVoices : synth.getVoices()
+    const selectedVoice = chooseBrowserVoice(currentVoices, voiceProfile)
+
+    const utterance = new SpeechSynthesisUtterance(text)
+    activeUtteranceRef.current = utterance
+    if (selectedVoice) utterance.voice = selectedVoice
+    utterance.lang = selectedVoice?.lang || 'en-US'
+    utterance.rate = voiceProfile.rate
+    utterance.pitch = voiceProfile.pitch
+
+    utterance.onstart = () => {
+      setIsInterviewerSpeaking(true)
+      // Mute microphone hardware track while speaking
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getAudioTracks().forEach(t => { t.enabled = false })
+      }
+    }
+
+    let fallbackTimeout = null
+    const handleSpeechEnd = () => {
+      if (fallbackTimeout) clearTimeout(fallbackTimeout)
+      setIsInterviewerSpeaking(false)
+      lastInterviewerSpeechEndTimeRef.current = Date.now()
+      
+      setTimeout(() => {
+        if (mediaStreamRef.current && micEnabled) {
+          mediaStreamRef.current.getAudioTracks().forEach(t => { t.enabled = true })
+        }
+        // Clear any transcript captured while AI was speaking
+        finalTranscriptRef.current = ''
+        setVoiceTranscript('')
+        setVoiceInterim('')
+        // Call the callback to notify the stage engine that TTS ended
+        onEnded?.()
+      }, 600)
+    }
+
+    utterance.onend = handleSpeechEnd
+    utterance.onerror = (err) => {
+      if (err.error === 'interrupted' || err.error === 'interrupted-by-another' || err.error === 'canceled') {
+        return
+      }
+      console.warn('Virtual TTS error:', err)
+      handleSpeechEnd()
+    }
+
+    // Word-rate based estimate: ~600ms per word + 3s lead-in, min 8s, max 90s
+    // This is far more accurate than character-count for variable-length questions.
+    const wordCount = text.trim().split(/\s+/).filter(Boolean).length
+    const durationEstimate = Math.min(90000, Math.max(8000, wordCount * 600 + 3000))
+    // Don't speak if the tab is hidden
+    if (document.hidden) {
+      handleSpeechEnd()
+      return
+    }
+    
+    synth.speak(utterance)
+    fallbackTimeout = setTimeout(() => {
+      console.warn('Virtual TTS onend failed to fire within estimate. Force triggering end handler.')
+      synth.cancel()
+      handleSpeechEnd()
+    }, durationEstimate)
+
+  }, [browserVoices, interviewerPersona, panelMode, activePanelMember?.id, micEnabled]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleCameraToggle = () => {
     const nextVal = !cameraEnabled
     setCameraEnabled(nextVal)
@@ -1925,6 +1727,7 @@ export default function InterviewPage() {
         panel_mode: panelMode,
         company: selectedCompany,
         company_context: companyContext,
+        interviewer_persona: interviewerPersona,
       })
 
       if (data.success && data.questions.length > 0) {
@@ -2355,7 +2158,7 @@ export default function InterviewPage() {
 
 
 
-  const handleFinish = async () => {
+  const handleFinish = async (gazeStats = null) => {
 
 
     await stopVoiceCapture({ keepTranscript: false, saveRecordingPreview: false, persistMetrics: false, stopCamera: true }).catch(() => {})
@@ -2388,7 +2191,7 @@ export default function InterviewPage() {
     try {
 
 
-      const { data } = await completeInterview(sessionId)
+      const { data } = await completeInterview(sessionId, gazeStats)
 
 
       setInterviewResults(data.results)
@@ -2824,10 +2627,15 @@ export default function InterviewPage() {
             <div className="card bg-gradient-to-br from-slate-950 to-slate-900 border border-white/10 !p-4 text-white">
               <p className="text-[10px] font-black uppercase tracking-widest text-cyan-400 mb-3">Your AI Interviewer</p>
               <div className="flex gap-2">
-                {['sarah', 'marcus'].map(p => {
+                {['nagma_hr', 'sarah', 'marcus'].map(p => {
                   const isSelected = interviewerPersona === p
-                  const name = p === 'sarah' ? 'Sarah Chen' : 'Marcus Rodriguez'
-                  const img = p === 'sarah' ? '/interviewers/sarah_chen.png' : '/interviewers/marcus_rodriguez.png'
+                  const name = p === 'sarah' ? 'Sarah Chen' : p === 'marcus' ? 'Marcus Rodriguez' : 'Nagma HR'
+                  const img = p === 'sarah'
+                    ? '/interviewers/sarah_chen.png'
+                    : p === 'marcus'
+                      ? '/interviewers/marcus_rodriguez.png'
+                      : '/interviewers/nagma_hr.png'
+                  const desc = p === 'nagma_hr' ? 'AI Recruiter' : 'HR Lead'
                   return (
                     <button
                       key={p}
@@ -2839,7 +2647,7 @@ export default function InterviewPage() {
                         {isSelected && <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-cyan-400 border-2 border-slate-950" />}
                       </div>
                       <span className="text-xs font-bold text-white">{name.split(' ')[0]}</span>
-                      <span className="text-[9px] text-gray-500">HR Lead</span>
+                      <span className="text-[9px] text-gray-500">{desc}</span>
                     </button>
                   )
                 })}
@@ -3295,56 +3103,80 @@ export default function InterviewPage() {
     )
   }
 
-  // Render the full-screen interview room for BOTH interviewing and evaluating phases.
+  // ── VirtualInterviewRoom — full-screen 19-clip HR video interview ──────────
   if (
     (phase === PHASE.INTERVIEWING || phase === PHASE.EVALUATING) &&
     (interviewFormat === 'video' || interviewFormat === 'voice')
   ) {
     return (
-      <AIInterviewerRoom
-        interviewFormat={interviewFormat}
-        questions={questions}
+      <VirtualInterviewRoom
+        // Identity
+        persona={interviewerPersona}
+        candidateName={candidateName}
+        sessionId={sessionId}
+        // Camera / mic streams
         cameraPreviewRef={cameraPreviewRef}
-        currentQuestion={currentQuestion}
-        interviewerName={interviewerName}
-        interviewerPersona={interviewerPersona}
-        isListening={isListening}
-        isSpeaking={isInterviewerSpeaking}
+        activeMediaStream={activeMediaStream}
         cameraReady={cameraReady}
-        emotionSnapshot={emotionSnapshot}
-        onEmotionSnapshotChange={setEmotionSnapshot}
-        onTelemetryOverrideChange={handleTelemetryOverrideChange}
+        micEnabled={micEnabled}
+        cameraEnabled={cameraEnabled}
+        // HR speaking state (drives mic mute during HR clips)
+        isInterviewerSpeaking={isInterviewerSpeaking}
+        // Candidate voice
+        isListening={isListening}
         voiceTranscript={voiceTranscript}
-        onVoiceTranscriptChange={setVoiceTranscript}
         voiceInterim={voiceInterim}
         voiceMetrics={voiceMetrics}
+        // Progress
         elapsedSeconds={elapsedSeconds}
-        totalElapsed={totalElapsed}
         currentIndex={currentIndex}
         totalQuestions={questions.length}
-        onSubmitAnswer={handleSubmitAnswer}
-        onIsSpeakingChange={setIsInterviewerSpeaking}
-        onSkipQuestion={handleSkip}
-        onEndInterview={handleFinish}
-        audioDevices={audioDevices}
-        videoDevices={videoDevices}
-        selectedMicId={selectedMicId}
-        selectedCameraId={selectedCameraId}
-        onMicChange={handleMicChange}
-        onCameraChange={handleCameraChange}
-        activeMediaStream={activeMediaStream}
-        zoomPhase={zoomPhase}
-        onboardingQuestionText={onboardingQuestionText}
-        encouragementText={encouragementText}
-        cameraEnabled={cameraEnabled}
-        onCameraToggle={handleCameraToggle}
-        micEnabled={micEnabled}
+        // Gemini question queue (pre-generated at session start)
+        geminiQuestions={questions}
+        // Silence detection → submit answer + advance stage engine
+        onSilenceDetected={(transcript) => {
+          if (transcript) setAnswer(transcript)
+          handleSubmitAnswer()
+        }}
+        // Stage change → sync zoomPhase for TTS compat
+        onStageChange={(stage) => {
+          const phaseMap = {
+            greeting:                'greet_mic',
+            asking_intro:            'identity_confirm',
+            candidate_intro:         null,
+            candidate_resume:        null,
+            thanks_answering:        null,
+            resume_intro:            'small_talk',
+            resume_reading:          null,
+            project_question:        null,
+            candidate_project:       null,
+            interesting_project:     null,
+            challenge_question:      null,
+            candidate_challenge:     null,
+            motivation_question:     null,
+            candidate_motivation:    null,
+            transition_to_gemini:    null,
+            gemini_speaking:         null,
+            candidate_gemini_answer: null,
+            closing:                 'closing',
+          }
+          const mapped = phaseMap[stage]
+          if (mapped !== undefined) setZoomPhase(mapped)
+        }}
+        onInterviewComplete={handleFinish}
+        // Controls
         onMicToggle={handleMicToggle}
-        showTypingFallback={showTypingFallback}
-        onShowTypingFallbackChange={setShowTypingFallback}
-        answer={answer}
-        onAnswerChange={setAnswer}
-        isEvaluating={phase === PHASE.EVALUATING}
+        onCameraToggle={handleCameraToggle}
+        onEndInterview={handleFinish}
+        // Stable mic lifecycle callbacks — useCallback([]) avoids render loops
+        onMicOpen={handleStageMicOpen}
+        onMicClose={handleStageMicClose}
+        onSpeakQuestion={speakVirtualQuestion}
+        // Telemetry drawer
+        coachingTips={coachingTips}
+        emotionSnapshot={emotionSnapshot}
+        onRegisterEngineSilence={(fn) => { engineSilenceRef.current = fn }}
+        silenceThreshold={zoomPhase ? 6000 : 12000}
       />
     )
   }

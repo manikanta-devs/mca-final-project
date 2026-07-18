@@ -133,8 +133,8 @@ export const submitAnswer = (data) =>
 export const submitOnboardingResponse = (data) =>
   client.post('/api/interview/onboarding-response', data)
 
-export const completeInterview = (sessionId) =>
-  client.post('/api/interview/complete', { session_id: sessionId })
+export const completeInterview = (sessionId, gazeStats = null) =>
+  client.post('/api/interview/complete', { session_id: sessionId, gaze_stats: gazeStats })
 
 export const getSessions = () => client.get('/api/interview/sessions')
 

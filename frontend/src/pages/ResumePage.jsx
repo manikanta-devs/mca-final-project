@@ -65,6 +65,13 @@ export default function ResumePage() {
         setResumeData(data.analysis)
         setFileName(file.name)
         setJobMatch(data.job_match || null)
+        
+        // Auto-extract candidate name from spaCy PERSON entities
+        const persons = data.analysis?.entities?.persons || []
+        if (persons.length > 0) {
+          setCandidateName(persons[0])
+        }
+        
         toast.success('Resume analyzed successfully!', { id: toastId })
       }
     } catch (err) {
@@ -102,6 +109,18 @@ export default function ResumePage() {
       if (data.success) {
         setResumeData(data.analysis)
         setJobMatch(data.job_match || null)
+        
+        // Auto-extract candidate name from entities or first line of text input
+        const persons = data.analysis?.entities?.persons || []
+        if (persons.length > 0) {
+          setCandidateName(persons[0])
+        } else {
+          const lines = textInput.split('\n').map(l => l.trim()).filter(Boolean)
+          if (lines.length > 0 && lines[0].length < 40 && !/resume|cv|curriculum/i.test(lines[0])) {
+            setCandidateName(lines[0])
+          }
+        }
+        
         toast.success('Resume text analyzed!', { id: toastId })
       }
     } catch (err) {

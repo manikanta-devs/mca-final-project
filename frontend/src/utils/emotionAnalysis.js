@@ -160,29 +160,50 @@ export function startEmotionSampler({ video, onUpdate, intervalMs = 2000 }) {
   }
 
   if (enableFaceMesh) {
-    loadMediaPipe().then((FaceMesh) => {
+    // Crash-proof FaceMesh initialization with timeout guard
+    loadMediaPipe().then(async (FaceMesh) => {
       if (stopped) return
-      faceMeshInstance = new FaceMesh({
-        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`
-      })
-      faceMeshInstance.setOptions({
-        maxNumFaces: 1,
-        refineLandmarks: true,
-        minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5
-      })
-      faceMeshInstance.onResults((results) => {
-        if (stopped) return
-        if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-          const landmarks = results.multiFaceLandmarks[0]
-          processLandmarks(landmarks)
-        } else {
-          runNoFaceSnapshot()
-        }
-      })
-      usingLandmarksActive = true
+      try {
+        faceMeshInstance = new FaceMesh({
+          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`
+        })
+        faceMeshInstance.setOptions({
+          maxNumFaces: 1,
+          refineLandmarks: true,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5
+        })
+        faceMeshInstance.onResults((results) => {
+          if (stopped) return
+          // First successful callback — now we know WASM is working
+          if (!usingLandmarksActive) {
+            usingLandmarksActive = true
+            console.log('[EmotionAnalysis] FaceMesh landmark mode activated successfully')
+          }
+          if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+            const landmarks = results.multiFaceLandmarks[0]
+            processLandmarks(landmarks)
+          } else {
+            runNoFaceSnapshot()
+          }
+        })
+
+        // Guard: initialize() must complete within 8 seconds or we abandon it
+        const initTimeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('FaceMesh initialize() timed out after 8s')), 8000)
+        )
+        await Promise.race([
+          faceMeshInstance.initialize(),
+          initTimeout
+        ])
+        console.log('[EmotionAnalysis] FaceMesh WASM initialized successfully')
+      } catch (initErr) {
+        console.warn('[EmotionAnalysis] FaceMesh init failed, permanent fallback to centroid mode:', initErr?.message || initErr)
+        usingLandmarksActive = false
+        faceMeshInstance = null
+      }
     }).catch((err) => {
-      console.warn('FaceMesh failed to load, using centroid tracking mode:', err)
+      console.warn('[EmotionAnalysis] FaceMesh script failed to load, using centroid tracking mode:', err)
     })
   }
 
@@ -361,9 +382,21 @@ export function startEmotionSampler({ video, onUpdate, intervalMs = 2000 }) {
     }
 
     if (usingLandmarksActive && faceMeshInstance) {
-      faceMeshInstance.send({ image: video }).catch(() => {
+      try {
+        faceMeshInstance.send({ image: video }).catch(() => {
+          // Async WASM failure — permanently disable and fall back
+          console.warn('[EmotionAnalysis] FaceMesh send() async failure, disabling landmarks permanently')
+          usingLandmarksActive = false
+          faceMeshInstance = null
+          runCentroidFallback()
+        })
+      } catch (syncErr) {
+        // Synchronous WASM abort() — permanently disable and fall back
+        console.warn('[EmotionAnalysis] FaceMesh send() sync crash, disabling landmarks permanently:', syncErr?.message || syncErr)
+        usingLandmarksActive = false
+        faceMeshInstance = null
         runCentroidFallback()
-      })
+      }
     } else {
       runCentroidFallback()
     }
