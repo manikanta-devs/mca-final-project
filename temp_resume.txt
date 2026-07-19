@@ -1,6 +1,0 @@
-
-John Doe
-Senior Software Engineer with 5 years of experience.
-Skills: Python, JavaScript, React, Node.js, SQL, AWS, Docker.
-Education: Bachelor of Science in Computer Science from Stanford University.
-Projects: Built a large scalable web application using React and Python backend with Redis caching, increasing throughput by 40%.
