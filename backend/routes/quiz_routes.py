@@ -3,6 +3,8 @@ import logging
 
 from services.quiz_service import QuizService
 from utils.auth_utils import token_required, verify_ownership
+from validators import QuizRequest
+from pydantic import ValidationError
 
 logger = logging.getLogger(__name__)
 quiz_bp = Blueprint("quiz", __name__)
@@ -34,9 +36,21 @@ def start_quiz():
         topic = data.get("topic", "python")
         difficulty = data.get("difficulty", "medium")
         num_questions = min(max(safe_int(data.get("num_questions", 5), 5), 3), 10)
+        
+        # Pydantic validation
+        try:
+            QuizRequest(
+                topic=topic,
+                difficulty=difficulty,
+                num_questions=num_questions
+            )
+        except ValidationError as val_err:
+            return jsonify({"error": "Validation failed", "message": val_err.errors()}), 400
+
         candidate_name = data.get("candidate_name", "Candidate")
         quiz_type = data.get("quiz_type", "technical")
         skills = data.get("skills", [])
+        company = data.get("company", "General")
         session = quiz_service.start_quiz(
             topic=topic,
             difficulty=difficulty,

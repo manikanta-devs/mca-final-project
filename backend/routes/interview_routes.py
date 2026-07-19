@@ -8,6 +8,8 @@ from ai.answer_evaluator import AnswerEvaluator
 from ai.interview_coach import InterviewCoach
 from utils.auth_utils import token_required, verify_ownership
 from utils.limiter import limiter
+from validators import InterviewRequest, QuestionRequest, AnswerEvaluationRequest
+from pydantic import ValidationError
 
 logger = logging.getLogger(__name__)
 interview_bp = Blueprint("interview", __name__)
@@ -30,9 +32,16 @@ def safe_int(value, default=0):
 def generate_questions():
     """Generate interview questions from resume data or role"""
     try:
-        data = request.get_json(silent=True)
-        if not data:
-            return jsonify({"error": "No data provided"}), 400
+        data = request.get_json(silent=True) or {}
+        
+        # Pydantic validation
+        try:
+            QuestionRequest(
+                job_role=data.get("role", "software_engineer"),
+                num_questions=safe_int(data.get("num_questions", 8), 8)
+            )
+        except ValidationError as val_err:
+            return jsonify({"error": "Validation failed", "message": val_err.errors()}), 400
 
         resume_data = data.get("resume_data", {})
         role = data.get("role", "software_engineer")
@@ -79,9 +88,18 @@ def generate_questions():
 def start_interview():
     """Start a new interview session"""
     try:
-        data = request.get_json(silent=True)
-        if not data:
-            return jsonify({"error": "No data provided"}), 400
+        data = request.get_json(silent=True) or {}
+        
+        # Pydantic validation
+        try:
+            InterviewRequest(
+                job_role=data.get("role", "software_engineer"),
+                num_questions=safe_int(data.get("num_questions", 5), 5),
+                duration_minutes=safe_int(data.get("duration_minutes", 30), 30),
+                interview_type=data.get("interview_format", "voice")
+            )
+        except ValidationError as val_err:
+            return jsonify({"error": "Validation failed", "message": val_err.errors()}), 400
 
         session_id = str(uuid.uuid4())
         questions = data.get("questions", [])
@@ -211,6 +229,16 @@ def submit_answer():
                 current_question = session["questions"][question_index]
         else:
             current_question = session["questions"][question_index]
+
+        # Pydantic validation
+        try:
+            AnswerEvaluationRequest(
+                question=current_question.get("text", "") if isinstance(current_question, dict) else str(current_question),
+                answer=answer,
+                job_role=session.get("role", "software_engineer")
+            )
+        except ValidationError as val_err:
+            return jsonify({"error": "Validation failed", "message": val_err.errors()}), 400
 
         # Initialize and update chat history for live context memory
         chat_history = session.setdefault("chat_history", [])
