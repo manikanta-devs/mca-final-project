@@ -1,4 +1,4 @@
-﻿/**
+/**
  * useInterviewStageEngine.js
  *
  * Central state machine for the real virtual interview flow.
@@ -429,43 +429,50 @@ export default function useInterviewStageEngine({
     advanceTo('hr_joins', 3500) // 3.5s connecting animation then HR joins
   }, [advanceTo])
 
-  // ─── Fallback timers for Nagma HR (static avatar has no video end events) ───
-  useEffect(() => {
-    if (interviewerPersona !== 'nagma_hr') return
-    
-    if (subStage === 'greeting') {
-      const t = setTimeout(() => {
-        const nextQ = dequeueGeminiQuestion()
-        if (nextQ) {
-          advanceTo('gemini_speaking', 0)
-        } else {
-          advanceTo('closing', 0)
-        }
-      }, 4500)
-      return () => clearTimeout(t)
-    }
-  }, [subStage, interviewerPersona, dequeueGeminiQuestion, advanceTo])
-
+  // ─── Fallback timers for Nagma HR (static avatar — no video end events fire) ──
+  //
+  // For video-playing personas (Sarah / Marcus) every stage transition is driven
+  // by HRVideoPlayer firing `onEnded` → `onVideoEnded()`.  Nagma HR shows a
+  // static image so we must replicate the same timing with setTimeout.
+  //
+  // Each scripted stage calls onVideoEnded() after a realistic delay, which
+  // routes through the exact same switch-case logic the video player uses.
+  // This keeps the full interview flow (intro → resume → project → Gemini Q&A)
+  // intact instead of jumping to gemini_speaking/closing before questions load.
   useEffect(() => {
     if (interviewerPersona !== 'nagma_hr') return
 
-    if (subStage === 'closing') {
-      const t = setTimeout(() => {
-        advanceTo('complete', 500)
-        onInterviewComplete?.()
-      }, 5000)
+    // Map each scripted (non-candidate, non-processing) stage to a display delay.
+    // Delays approximate how long a real video clip for that stage lasts.
+    const SCRIPTED_DELAYS = {
+      greeting:             4500,
+      asking_intro:         4000,
+      thanks_answering:     3500,
+      resume_intro:         4000,
+      resume_reading:       4500,
+      project_question:     4000,
+      interesting_project:  3500,
+      challenge_question:   4000,
+      motivation_question:  4000,
+      transition_to_gemini: 3000,
+      gemini_speaking:      7000,  // fallback if TTS onEnded never fires
+      closing:              5000,
     }
-  }, [subStage, interviewerPersona, advanceTo, onInterviewComplete])
 
-  useEffect(() => {
-    if (interviewerPersona !== 'nagma_hr') return
+    // Processing stages use a shorter fixed delay so Gemini analysis has time
+    const PROCESSING_DELAY = 2500
+    const isProcessing = [
+      'processing_notes', 'processing_screen', 'processing_gemini',
+      'processing_project', 'processing_challenge', 'processing_motivation',
+    ].includes(subStage)
 
-    if (['processing_notes', 'processing_screen', 'processing_gemini'].includes(subStage)) {
-      const t = setTimeout(() => {
-        onVideoEnded()
-      }, 2500)
-      return () => clearTimeout(t)
-    }
+    const delay = isProcessing ? PROCESSING_DELAY : SCRIPTED_DELAYS[subStage]
+    if (delay === undefined) return  // candidate_* stages — mic is open, no timer
+
+    const t = setTimeout(() => {
+      onVideoEnded()
+    }, delay)
+    return () => clearTimeout(t)
   }, [subStage, interviewerPersona, onVideoEnded])
 
   return {

@@ -64,6 +64,12 @@ import {
   Cpu,
 
 
+  Clock,
+
+
+  Zap,
+
+
 } from 'lucide-react'
 
 
@@ -77,6 +83,13 @@ import { useApp } from '../context/AppContext'
 
 
 import LoadingSpinner from '../components/LoadingSpinner'
+
+const formatTime = (secs = 0) => {
+  const m = Math.floor(secs / 60)
+  const s = Math.floor(secs % 60)
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+}
+
 
 
 import { MiniScoreRow } from '../components/ScoreCard'
@@ -350,6 +363,9 @@ export default function InterviewPage() {
   const isStartingCaptureRef = useRef(false)
   const isSubmittingRef = useRef(false)
   const lastInterviewerSpeechEndTimeRef = useRef(0)
+  // Stable refs so that handleStageMicOpen/Close never hold stale closures
+  const startVoiceCaptureRef = useRef(null)
+  const stopVoiceCaptureRef = useRef(null)
 
 
 
@@ -1271,15 +1287,24 @@ export default function InterviewPage() {
       }, 400)
     }
   }
-  // Stable callbacks for VirtualInterviewRoom mic open/close — must NOT be inline
-  // arrow functions or the stage-engine useEffect re-fires on every render.
+
+  // ── Keep voice-capture refs current on every render ────────────────────────
+  // This lets the stable useCallback handlers below always call the latest
+  // version of startVoiceCapture / stopVoiceCapture (which close over state).
+  useEffect(() => { // eslint-disable-line
+    startVoiceCaptureRef.current = startVoiceCapture
+    stopVoiceCaptureRef.current  = stopVoiceCapture
+  })
+
+  // Stable callbacks for VirtualInterviewRoom mic open/close — must NOT be
+  // inline arrow functions or the stage-engine useEffect re-fires every render.
   const handleStageMicOpen = useCallback(() => {
-    startVoiceCapture().catch(() => {})
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    startVoiceCaptureRef.current?.().catch(() => {})
+  }, []) // deps intentionally empty — ref is always current
 
   const handleStageMicClose = useCallback(() => {
-    stopVoiceCapture({ keepTranscript: true }).catch(() => {})
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    stopVoiceCaptureRef.current?.({ keepTranscript: true }).catch(() => {})
+  }, []) // deps intentionally empty — ref is always current
 
   // Custom speaker helper for VirtualInterviewRoom's Gemini/AI speaking stages
   const speakVirtualQuestion = useCallback((text, { onEnded }) => {
@@ -1361,7 +1386,7 @@ export default function InterviewPage() {
       handleSpeechEnd()
     }, durationEstimate)
 
-  }, [browserVoices, interviewerPersona, panelMode, activePanelMember?.id, micEnabled]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [browserVoices, interviewerPersona, panelMode, activePanelMember?.id, micEnabled]) // eslint-disable-line
 
   const handleCameraToggle = () => {
     const nextVal = !cameraEnabled
@@ -3081,7 +3106,7 @@ export default function InterviewPage() {
 
             {/* 3. Today's Summary */}
             <div className="space-y-2 flex-1 flex flex-col justify-end">
-              <span className="text-[9px] text-gray-400 font-black uppercase tracking-widest block mb-2">Today's Summary</span>
+              <span className="text-[9px] text-gray-400 font-black uppercase tracking-widest block mb-2">Today&apos;s Summary</span>
               <div className="space-y-2 text-[10px] font-bold text-gray-400">
                 <div className="flex justify-between items-center bg-slate-950/40 p-2.5 rounded-xl border border-white/5">
                   <span>Questions Answered</span>

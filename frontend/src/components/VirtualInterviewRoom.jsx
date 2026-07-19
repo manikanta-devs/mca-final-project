@@ -210,7 +210,7 @@ export default function VirtualInterviewRoom({
     script.onerror = () => console.warn('Failed to load face-api.js script')
     document.body.appendChild(script)
     return () => {
-      try { document.body.removeChild(script) } catch (_) {}
+      try { document.body.removeChild(script) } catch (_) { /* ignore if already removed */ }
     }
   }, [persona])
 
